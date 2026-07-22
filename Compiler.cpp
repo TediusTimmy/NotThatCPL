@@ -918,51 +918,51 @@ void IfsCommand(const std::string& line, const std::string& cmd, CompilerState& 
    std::unique_ptr<Predicate<StringExpr> > condition;
    if (".EQ." == predicate)
     {
-      condition = std::make_unique<SortaEquals>(lhs, rhs);
+      condition = std::make_unique<SortaEquals>(std::move(lhs), std::move(rhs));
     }
    else if (".NE." == predicate)
     {
-      condition = std::make_unique<SortaNotEquals>(lhs, rhs);
+      condition = std::make_unique<SortaNotEquals>(std::move(lhs), std::move(rhs));
     }
    else if (".LE." == predicate)
     {
-      condition = std::make_unique<SortaLessEqual>(lhs, rhs);
+      condition = std::make_unique<SortaLessEqual>(std::move(lhs), std::move(rhs));
     }
    else if (".GE." == predicate)
     {
-      condition = std::make_unique<SortaGreaterEqual>(lhs, rhs);
+      condition = std::make_unique<SortaGreaterEqual>(std::move(lhs), std::move(rhs));
     }
    else if (".GT." == predicate)
     {
-      condition = std::make_unique<SortaGreater>(lhs, rhs);
+      condition = std::make_unique<SortaGreater>(std::move(lhs), std::move(rhs));
     }
    else if (".LT." == predicate)
     {
-      condition = std::make_unique<SortaLess>(lhs, rhs);
+      condition = std::make_unique<SortaLess>(std::move(lhs), std::move(rhs));
     }
    else if (".HEQ." == predicate)
     {
-      condition = std::make_unique<Equals<StringExpr> >(lhs, rhs);
+      condition = std::make_unique<Equals<StringExpr> >(std::move(lhs), std::move(rhs));
     }
    else if (".HNE." == predicate)
     {
-      condition = std::make_unique<NotEquals<StringExpr> >(lhs, rhs);
+      condition = std::make_unique<NotEquals<StringExpr> >(std::move(lhs), std::move(rhs));
     }
    else if (".HLE." == predicate)
     {
-      condition = std::make_unique<LessEqual<StringExpr> >(lhs, rhs);
+      condition = std::make_unique<LessEqual<StringExpr> >(std::move(lhs), std::move(rhs));
     }
    else if (".HGE." == predicate)
     {
-      condition = std::make_unique<GreaterEqual<StringExpr> >(lhs, rhs);
+      condition = std::make_unique<GreaterEqual<StringExpr> >(std::move(lhs), std::move(rhs));
     }
    else if (".HGT." == predicate)
     {
-      condition = std::make_unique<Greater<StringExpr> >(lhs, rhs);
+      condition = std::make_unique<Greater<StringExpr> >(std::move(lhs), std::move(rhs));
     }
    else if (".HLT." == predicate)
     {
-      condition = std::make_unique<Less<StringExpr> >(lhs, rhs);
+      condition = std::make_unique<Less<StringExpr> >(std::move(lhs), std::move(rhs));
     }
    else
     {
