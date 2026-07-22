@@ -60,7 +60,7 @@ private:
 public:
    std::string name;
    size_t size;
-   std::string getValue() const { return value; }
+   const std::string& getValue() const { return value; }
    void setValue(const std::string&);
    StrVar(std::string name, size_t size, std::string value) : value(value), name(name), size(size) { }
  };
@@ -98,7 +98,7 @@ public:
    size_t entry;
    size_t pc;
 
-   Environment() : entry(static_cast<size_t>(-1)) { }
+   Environment() : entry(static_cast<size_t>(-1)), pc(0U) { }
  };
 
 #endif /* NOTTHATCPL_ENVIRONMENT_H */

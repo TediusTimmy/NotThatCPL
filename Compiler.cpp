@@ -77,13 +77,13 @@ std::string Compiler::DeblankStr(const std::string& source)
     {
       if (!inQuotes)
        {
-         while ((i < line.length()) && ((line[i] == ' ') || (line[i] == '\t')))
+         while ((i < (line.length() - 1U)) && ((line[i] == ' ') || (line[i] == '\t')))
           {
             line.erase(i, 1U);
           }
          if (line[i] == ';')
           {
-            line = line.substr(0U, i);
+            line.resize(i);
           }
          line[i] = std::toupper(static_cast<unsigned char>(line[i]));
        }
@@ -107,7 +107,7 @@ void Compiler::deblank(Environment& env)
     }
  }
 
-void Compiler::printListing(Environment& env)
+void Compiler::printListing(const Environment& env)
  {
    size_t lineNo = 1U;
    for (const auto& line : env.source)
@@ -137,10 +137,10 @@ public:
  };
 
 void addSystemVariables(Environment&);
-void searchForSystem(CompilerState&, Environment&);
+void searchForSystem(CompilerState&, const Environment&);
 bool getNextLine(const CompilerState&, const Environment&, std::string&);
 std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> getNextCommand(const std::string&, size_t);
-void checkForLabel(const std::string&, CompilerState&, Environment&);
+void checkForLabel(const std::string&, CompilerState&, const Environment&);
 
 void Compiler::compileSource(Environment& env)
  {
@@ -180,7 +180,7 @@ void Compiler::compileSource(Environment& env)
    throw StopCode(3);
  }
 
-void searchForSystem(CompilerState& state, Environment& env)
+void searchForSystem(CompilerState& state, const Environment& env)
  {
    std::string line;
    bool found = false;
@@ -440,7 +440,7 @@ bool extractLabel(const std::string& line, size_t start, char delim, bool orEOL,
    return false;
  }
 
-void checkForLabel(const std::string& line, CompilerState& state, Environment& env)
+void checkForLabel(const std::string& line, CompilerState& state, const Environment& env)
  {
    // Labels may only occur at the beginning of a line.
    if (0U == state.charNo)
@@ -705,7 +705,7 @@ std::unique_ptr<StringExpr> Compiler::StringExpression(const std::string& line, 
     {
       std::string result;
       ++charNo;
-      while ('\'' != line[charNo])
+      while (('\'' != line[charNo]) && ('\0' != line[charNo]))
        {
          result += line[charNo++];
          if (('\'' == line[charNo]) && ('\'' == line[charNo + 1U]))

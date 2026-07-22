@@ -85,12 +85,12 @@ void OpenImpl::execute(Environment& env)
 
 void WritenImpl::execute(Environment& env)
  {
-   env.files[fileNo]->putStr(value->eval(env).c_str());
+   env.files[fileNo]->putStr(value->eval(env));
  }
 
 void WriteImpl::execute(Environment& env)
  {
-   env.files[fileNo]->putLine(value->eval(env).c_str());
+   env.files[fileNo]->putLine(value->eval(env));
  }
 
 void ClsImpl::execute(Environment& env)

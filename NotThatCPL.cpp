@@ -103,6 +103,7 @@ int main (int argc, char ** argv)
          PutString(env.source[icode->lineNo].substr(icode->lineEnd).c_str());
          NewLine();
        }
+      NewLine();
 #endif /* NOTTHATCPL_WITH_DEBUGGING */
 
       env.pc = env.entry;

@@ -47,7 +47,7 @@ public:
    static void readSource(const char*, Environment&);
    static std::string DeblankStr(const std::string&);
    static void deblank(Environment&);
-   static void printListing(Environment&);
+   static void printListing(const Environment&);
    static void compileSource(Environment&);
    static std::unique_ptr<StringExpr> StringExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, Environment&);
  };

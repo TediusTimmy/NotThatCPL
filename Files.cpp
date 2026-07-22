@@ -35,43 +35,43 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class ScreenFile final : public FileDecl
  {
 public:
-   virtual void open(std::ios_base::openmode)
+   virtual void open(std::ios_base::openmode) override
     {
       // Can't open (or close) the screen.
     }
 
-   virtual void close(void)
+   virtual void close(void) override
     {
       // Can't (open or) close the screen.
     }
 
-   virtual void clearScreen(void)
+   virtual void clearScreen(void) override
     {
       ClearScreen();
     }
 
-   virtual void putStr(const std::string& val)
+   virtual void putStr(const std::string& val) override
     {
       PutString(val.c_str());
     }
 
-   virtual void putLine(const std::string& val)
+   virtual void putLine(const std::string& val) override
     {
       PutString(val.c_str());
       NewLine();
     }
 
-   virtual bool getStr(std::string& result)
+   virtual bool getStr(std::string& result) override
     {
       return GetString(result);
     }
 
-   virtual char getChar(void)
+   virtual char getChar(void) override
     {
       return GetChar();
     }
 
-   virtual ~ScreenFile()
+   virtual ~ScreenFile() override
     {
     }
  };

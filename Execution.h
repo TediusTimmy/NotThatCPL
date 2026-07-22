@@ -57,9 +57,9 @@ class StringConst final : public StringExpr
  {
    std::string value;
 public:
-   StringConst(const std::string& value) : value(value) { }
+   explicit StringConst(const std::string& value) : value(value) { }
    virtual std::string eval(const Environment&) override { return value; }
-   virtual ~StringConst() { }
+   virtual ~StringConst() override { }
  };
 
 class StringCat final : public StringExpr
@@ -68,16 +68,16 @@ class StringCat final : public StringExpr
 public:
    StringCat(std::unique_ptr<StringExpr>&& lhs, std::unique_ptr<StringExpr>&& rhs) : lhs(std::move(lhs)), rhs(std::move(rhs)) { }
    virtual std::string eval(const Environment& env) override { return lhs->eval(env) + rhs->eval(env); }
-   virtual ~StringCat() { }
+   virtual ~StringCat() override { }
 };
 
 class StringVar final : public StringExpr
  {
    size_t var;
 public:
-   StringVar(size_t var) : var(var) { }
+   explicit StringVar(size_t var) : var(var) { }
    virtual std::string eval(const Environment&) override;
-   virtual ~StringVar() { }
+   virtual ~StringVar() override { }
  };
 
 class NumberExpr
@@ -93,7 +93,7 @@ class Plus final : public NumberExpr
 public:
    Plus(std::unique_ptr<NumberExpr>&& lhs, std::unique_ptr<NumberExpr>&& rhs) : lhs(std::move(lhs)), rhs(std::move(rhs)) { }
    virtual int64_t eval(const Environment& env) override { return lhs->eval(env) + rhs->eval(env); }
-   virtual ~Plus() { }
+   virtual ~Plus() override { }
 };
 
 class Minus final : public NumberExpr
@@ -102,7 +102,7 @@ class Minus final : public NumberExpr
 public:
    Minus(std::unique_ptr<NumberExpr>&& lhs, std::unique_ptr<NumberExpr>&& rhs) : lhs(std::move(lhs)), rhs(std::move(rhs)) { }
    virtual int64_t eval(const Environment& env) override { return lhs->eval(env) - rhs->eval(env); }
-   virtual ~Minus() { }
+   virtual ~Minus() override { }
 };
 
 class Multiply final : public NumberExpr
@@ -111,7 +111,7 @@ class Multiply final : public NumberExpr
 public:
    Multiply(std::unique_ptr<NumberExpr>&& lhs, std::unique_ptr<NumberExpr>&& rhs) : lhs(std::move(lhs)), rhs(std::move(rhs)) { }
    virtual int64_t eval(const Environment& env) override { return lhs->eval(env) * rhs->eval(env); }
-   virtual ~Multiply() { }
+   virtual ~Multiply() override { }
 };
 
 class Divide final : public NumberExpr
@@ -120,7 +120,7 @@ class Divide final : public NumberExpr
 public:
    Divide(std::unique_ptr<NumberExpr>&& lhs, std::unique_ptr<NumberExpr>&& rhs) : lhs(std::move(lhs)), rhs(std::move(rhs)) { }
    virtual int64_t eval(const Environment& env) override { return lhs->eval(env) / rhs->eval(env); } // TODO : division by 0
-   virtual ~Divide() { }
+   virtual ~Divide() override { }
 };
 
 class Mod final : public NumberExpr
@@ -129,25 +129,25 @@ class Mod final : public NumberExpr
 public:
    Mod(std::unique_ptr<NumberExpr>&& lhs, std::unique_ptr<NumberExpr>&& rhs) : lhs(std::move(lhs)), rhs(std::move(rhs)) { }
    virtual int64_t eval(const Environment& env) override { return lhs->eval(env) % rhs->eval(env); }
-   virtual ~Mod() { }
+   virtual ~Mod() override { }
 };
 
 class NumberConst final : public NumberExpr
  {
    int64_t value;
 public:
-   NumberConst(int64_t value) : value(value) { }
+   explicit NumberConst(int64_t value) : value(value) { }
    virtual int64_t eval(const Environment&) override { return value; }
-   virtual ~NumberConst() { }
+   virtual ~NumberConst() override { }
  };
 
 class NumberVar final : public NumberExpr
  {
    size_t var;
 public:
-   NumberVar(size_t var) : var(var) { }
+   explicit NumberVar(size_t var) : var(var) { }
    virtual int64_t eval(const Environment&) override;
-   virtual ~NumberVar() { }
+   virtual ~NumberVar() override { }
  };
 
 template <typename T>
@@ -167,7 +167,7 @@ class Equals : public Predicate<T>
 public:
    Equals(std::unique_ptr<T>&& lhs, std::unique_ptr<T>&& rhs) : Predicate<T>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return this->lhs->eval(env) == this->rhs->eval(env); }
-   virtual ~Equals() { }
+   virtual ~Equals() override { }
  };
 
 template <typename T>
@@ -176,7 +176,7 @@ class NotEquals : public Predicate<T>
 public:
    NotEquals(std::unique_ptr<T>&& lhs, std::unique_ptr<T>&& rhs) : Predicate<T>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return this->lhs->eval(env) != this->rhs->eval(env); }
-   virtual ~NotEquals() { }
+   virtual ~NotEquals() override { }
  };
 
 template <typename T>
@@ -185,7 +185,7 @@ class Less : public Predicate<T>
 public:
    Less(std::unique_ptr<T>&& lhs, std::unique_ptr<T>&& rhs) : Predicate<T>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return this->lhs->eval(env) < this->rhs->eval(env); }
-   virtual ~Less() { }
+   virtual ~Less() override { }
  };
 
 template <typename T>
@@ -194,7 +194,7 @@ class Greater : public Predicate<T>
 public:
    Greater(std::unique_ptr<T>&& lhs, std::unique_ptr<T>&& rhs) : Predicate<T>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return this->lhs->eval(env) > this->rhs->eval(env); }
-   virtual ~Greater() { }
+   virtual ~Greater() override { }
  };
 
 template <typename T>
@@ -203,7 +203,7 @@ class LessEqual : public Predicate<T>
 public:
    LessEqual(std::unique_ptr<T>&& lhs, std::unique_ptr<T>&& rhs) : Predicate<T>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return this->lhs->eval(env) <= this->rhs->eval(env); }
-   virtual ~LessEqual() { }
+   virtual ~LessEqual() override { }
  };
 
 template <typename T>
@@ -212,7 +212,7 @@ class GreaterEqual : public Predicate<T>
 public:
    GreaterEqual(std::unique_ptr<T>&& lhs, std::unique_ptr<T>&& rhs) : Predicate<T>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return this->lhs->eval(env) >= this->rhs->eval(env); }
-   virtual ~GreaterEqual() { }
+   virtual ~GreaterEqual() override { }
  };
 
 std::string NormalizeStr(const std::string&);
@@ -222,7 +222,7 @@ class SortaEquals : public Predicate<StringExpr>
 public:
    SortaEquals(std::unique_ptr<StringExpr>&& lhs, std::unique_ptr<StringExpr>&& rhs) : Predicate<StringExpr>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return NormalizeStr(this->lhs->eval(env)) == NormalizeStr(this->rhs->eval(env)); }
-   virtual ~SortaEquals() { }
+   virtual ~SortaEquals() override { }
  };
 
 class SortaNotEquals : public Predicate<StringExpr>
@@ -230,7 +230,7 @@ class SortaNotEquals : public Predicate<StringExpr>
 public:
    SortaNotEquals(std::unique_ptr<StringExpr>&& lhs, std::unique_ptr<StringExpr>&& rhs) : Predicate<StringExpr>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return NormalizeStr(this->lhs->eval(env)) != NormalizeStr(this->rhs->eval(env)); }
-   virtual ~SortaNotEquals() { }
+   virtual ~SortaNotEquals() override { }
  };
 
 class SortaLess : public Predicate<StringExpr>
@@ -238,7 +238,7 @@ class SortaLess : public Predicate<StringExpr>
 public:
    SortaLess(std::unique_ptr<StringExpr>&& lhs, std::unique_ptr<StringExpr>&& rhs) : Predicate<StringExpr>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return NormalizeStr(this->lhs->eval(env)) < NormalizeStr(this->rhs->eval(env)); }
-   virtual ~SortaLess() { }
+   virtual ~SortaLess() override { }
  };
 
 class SortaGreater : public Predicate<StringExpr>
@@ -246,7 +246,7 @@ class SortaGreater : public Predicate<StringExpr>
 public:
    SortaGreater(std::unique_ptr<StringExpr>&& lhs, std::unique_ptr<StringExpr>&& rhs) : Predicate<StringExpr>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return NormalizeStr(this->lhs->eval(env)) > NormalizeStr(this->rhs->eval(env)); }
-   virtual ~SortaGreater() { }
+   virtual ~SortaGreater() override { }
  };
 
 class SortaLessEqual : public Predicate<StringExpr>
@@ -254,7 +254,7 @@ class SortaLessEqual : public Predicate<StringExpr>
 public:
    SortaLessEqual(std::unique_ptr<StringExpr>&& lhs, std::unique_ptr<StringExpr>&& rhs) : Predicate<StringExpr>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return NormalizeStr(this->lhs->eval(env)) <= NormalizeStr(this->rhs->eval(env)); }
-   virtual ~SortaLessEqual() { }
+   virtual ~SortaLessEqual() override { }
  };
 
 class SortaGreaterEqual : public Predicate<StringExpr>
@@ -262,7 +262,7 @@ class SortaGreaterEqual : public Predicate<StringExpr>
 public:
    SortaGreaterEqual(std::unique_ptr<StringExpr>&& lhs, std::unique_ptr<StringExpr>&& rhs) : Predicate<StringExpr>(std::move(lhs), std::move(rhs)) { }
    virtual bool eval(const Environment& env) override { return NormalizeStr(this->lhs->eval(env)) >= NormalizeStr(this->rhs->eval(env)); }
-   virtual ~SortaGreaterEqual() { }
+   virtual ~SortaGreaterEqual() override { }
  };
 
 
@@ -356,7 +356,7 @@ class GotoImpl final : public ICode
 public:
    std::string label;
    size_t target;
-   GotoImpl (size_t lineNo, size_t lineStart, size_t lineEnd, const std::string& label) : ICode(lineNo, lineStart, lineEnd), label(label) { }
+   GotoImpl (size_t lineNo, size_t lineStart, size_t lineEnd, const std::string& label) : ICode(lineNo, lineStart, lineEnd), label(label), target(0U) { }
    virtual void execute(Environment&) override;
    virtual void fixJumps(const std::map<std::string, size_t>&, const std::map<std::string, size_t>&) override;
  };
