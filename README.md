@@ -30,7 +30,7 @@ I don't know. What does SVC 7 do? Who knows whether any semiconductors exist?
 But, so long as you don't try fancy things, you can write programs that can be run on
 his old computer.
 
-You should see the [notes](NOTES.md) on how things were implemented.
+You should see the [notes](Notes.md) on how things were implemented.
 Also, look at the sources [REAMDE](sources/README.md) for what is currently running.
 
 
@@ -41,12 +41,12 @@ The default build has a debugger. It can be removed to just run your programs.
 The debugger will print out the deblanked source, then the compiled, deblanked source,
 and then you can enter commands.
 
-`RUN` - Run the program, or re-run it, or continue it.
-`STEP` or `NEXT` - Take a step of one command in the code.
-`QUIT` - Quit the debugger (and program).
-`PRINTS` - Print a string expression.
-`PRINTN` - Print a numeric expression.
-`HELP` - Get help.
+`RUN` - Run the program, or re-run it, or continue it.  
+`STEP` or `NEXT` - Take a step of one command in the code.  
+`QUIT` - Quit the debugger (and program).  
+`PRINTS` - Print a string expression.  
+`PRINTN` - Print a numeric expression.  
+`HELP` - Get help.  
 
 It tries to do sane things when you press Ctrl-C to interrupt it, but,
 interrupting it while waiting for input doesn't work right.

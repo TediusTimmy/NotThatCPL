@@ -5,6 +5,6 @@ All of these files were found here: https://github.com/Nakazoto/CenturionCompute
 
 They are not mine. They are not subject to the license, as I can't relicense them. They were used to test the functionality of the interpreter, and represent milestones.
 
-## Programs in order
+## Programs in the order the I got them running
 
 * hello.cepl
