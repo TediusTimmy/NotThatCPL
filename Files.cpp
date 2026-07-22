@@ -70,8 +70,4 @@ public:
     {
       return GetChar();
     }
-
-   virtual ~ScreenFile() override
-    {
-    }
  };
