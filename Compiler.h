@@ -49,8 +49,8 @@ public:
    static void deblank(Environment&);
    static void printListing(const Environment&);
    static void compileSource(Environment&);
-   static std::unique_ptr<StringExpr> StringExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, Environment&);
-   static std::unique_ptr<NumberExpr> NumberExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, Environment&);
+   static std::unique_ptr<StringExpr> StringExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, const Environment&);
+   static std::unique_ptr<NumberExpr> NumberExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, const Environment&);
  };
 
 #endif /* NOTTHATCPL_COMPILER_H */

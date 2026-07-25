@@ -704,7 +704,7 @@ void OpenCommand(const std::string& line, const std::string& cmd, CompilerState&
    NextLine(state, env);
  }
 
-std::unique_ptr<StringExpr> Compiler::StringExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, Environment& env)
+std::unique_ptr<StringExpr> Compiler::StringExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, const Environment& env)
  {
    std::unique_ptr<StringExpr> value;
    if ('\'' == line[charNo])
@@ -732,13 +732,13 @@ std::unique_ptr<StringExpr> Compiler::StringExpression(const std::string& line, 
       if (extractLabel(line, charNo, delim, orEOL, var) && (env.symbols.strVars.end() != env.symbols.strVars.find(var)))
        {
          charNo += var.length();
-         value = std::make_unique<StringVar>(env.symbols.strVars[var]);
+         value = std::make_unique<StringVar>(env.symbols.strVars.find(var)->second);
        }
     }
    return value;
  }
 
-std::unique_ptr<NumberExpr> Compiler::NumberExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, Environment& env)
+std::unique_ptr<NumberExpr> Compiler::NumberExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, const Environment& env)
  {
    std::unique_ptr<NumberExpr> value = RealExpression(line, charNo, env);
    if ((line[charNo] != delim) && !(orEOL && ('\0' == line[charNo])))
