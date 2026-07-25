@@ -87,7 +87,7 @@ class RealFile final : public FileDecl
    std::fstream backing;
    std::string name;
 public:
-   RealFile(const std::string& name) : name(name) { }
+   explicit RealFile(const std::string& name) : name(name) { }
 
    virtual void open(std::ios_base::openmode mode) override
     {
