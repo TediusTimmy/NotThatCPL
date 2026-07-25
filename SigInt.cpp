@@ -47,7 +47,7 @@ void InstallSigintHandler(void)
  {
    struct sigaction sa;
    sa.sa_handler = handler;
-   sa.sa_mask = 0;
+   sigemptyset(&sa.sa_mask);
    sa.sa_flags = 0;
    sigaction(SIGINT, &sa, NULL);
  }
