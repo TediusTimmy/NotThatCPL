@@ -70,4 +70,131 @@ public:
     {
       return GetChar();
     }
+
+   virtual void rewind(void) override
+    {
+      // Que?
+    }
+
+   virtual void flush(void) override
+    {
+      Flush();
+    }
+ };
+
+class RealFile final : public FileDecl
+ {
+   std::fstream backing;
+   std::string name;
+public:
+   RealFile(const std::string& name) : name(name) { }
+
+   virtual void open(std::ios_base::openmode mode) override
+    {
+      backing.open(name, mode);
+    }
+
+   virtual void close(void) override
+    {
+      backing.close();
+    }
+
+   virtual void clearScreen(void) override
+    {
+      // What does this even mean?
+    }
+
+   virtual void putStr(const std::string& val) override
+    {
+      backing << val;
+    }
+
+   virtual void putLine(const std::string& val) override
+    {
+      backing << val << std::endl;
+    }
+
+   virtual bool getStr(std::string& result) override
+    {
+      return !!std::getline(backing, result);
+    }
+
+   virtual char getChar(void) override
+    {
+      return backing.get();
+    }
+
+   virtual void rewind(void) override
+    {
+      backing.seekg(0U);
+    }
+
+   virtual void flush(void) override
+    {
+      backing.flush();
+    }
+ };
+
+class VirtualFile final : public FileDecl
+ {
+   std::vector<std::string> backing;
+   size_t line;
+public:
+   VirtualFile() : line(0U) { }
+
+   virtual void open(std::ios_base::openmode) override
+    {
+      // Que?
+    }
+
+   virtual void close(void) override
+    {
+      backing.clear();
+    }
+
+   virtual void clearScreen(void) override
+    {
+      // What does this even mean?
+    }
+
+   virtual void putStr(const std::string& val) override
+    {
+      if (backing.empty())
+       {
+         backing.emplace_back("");
+       }
+      backing.back().append(val);
+    }
+
+   virtual void putLine(const std::string& val) override
+    {
+      putStr(val);
+      backing.emplace_back("");
+    }
+
+   virtual bool getStr(std::string& result) override
+    {
+      bool retVal = false;
+      if (line < backing.size())
+       {
+         retVal = true;
+         result = backing[line++];
+       }
+      return retVal;
+    }
+
+   virtual char getChar(void) override
+    {
+      throw Unimplemented("virtual file byte read");
+    }
+
+   virtual void rewind(void) override
+    {
+      line = 0U;
+    }
+
+   virtual void flush(void) override
+    {
+      // Not meaningful
+    }
  };

@@ -48,5 +48,6 @@ void NewLine(void);
 void ClearScreen(void);
 void ClearInputFlags(void);
 void Backspace(void);
+void Flush(void);
 
 #endif /* NOTTHATCPL_SCREEN_H */

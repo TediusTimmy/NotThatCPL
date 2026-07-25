@@ -276,6 +276,9 @@ void IncrCommand(const std::string&, const std::string&, CompilerState&, Environ
 void LoopWhileCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void CursCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void AssignmentCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void DefineCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void EndFileCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void CallCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 
 // TODO : remove
 void TODO(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -323,9 +326,9 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("RECORD", TODO3));
 
    result.emplace_back(std::make_pair("SET", SetCommand));
-   result.emplace_back(std::make_pair("DEFINE", TODO));
+   result.emplace_back(std::make_pair("DEFINE", DefineCommand));
 
-   result.emplace_back(std::make_pair("EXTERNAL", TODO));
+   result.emplace_back(std::make_pair("EXTERNAL", IgnoredCommand));
    result.emplace_back(std::make_pair("FORMAT", FormatCommand));
    // This is why we have a table:
    result.emplace_back(std::make_pair("ENTRYPOINT", IgnoredCommand));
@@ -353,11 +356,11 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    // This is why we have a table:
    result.emplace_back(std::make_pair("ENDLOOP", UnimplementedCommand));
    result.emplace_back(std::make_pair("ENDDO", UnimplementedCommand));
-   result.emplace_back(std::make_pair("ENDFILE", TODO));
+   result.emplace_back(std::make_pair("ENDFILE", EndFileCommand));
    result.emplace_back(std::make_pair("END", EndCommand));
 
    result.emplace_back(std::make_pair("SUBROUTINE", TODO));
-   result.emplace_back(std::make_pair("CALL", TODO));
+   result.emplace_back(std::make_pair("CALL", CallCommand));
    result.emplace_back(std::make_pair("RETRIEVE", TODO));
    result.emplace_back(std::make_pair("GOTO(", TODO)); // Switch statement
    result.emplace_back(std::make_pair("GOTO", GotoCommand));
@@ -482,10 +485,25 @@ void FileCommand(const std::string& line, const std::string& cmd, CompilerState&
             state.files[label] = env.files.size();
             env.files.emplace_back(std::make_unique<ScreenFile>());
           }
+         else if ("SYS" == number.substr(0U, 3U))
+          {
+            size_t fileNo = std::stoull(number.substr(3U, 3U));
+            state.files[label] = env.files.size();
+            if (fileNo < env.fileNames.size())
+             {
+               env.files.emplace_back(std::make_unique<RealFile>(env.fileNames[fileNo]));
+             }
+            else
+             {
+               env.files.emplace_back(std::make_unique<VirtualFile>());
+             }
+          }
          else
           {
-            // TODO : file numbers
-            UnimplementedCommand(line, cmd, state, env);
+            PutString("Unknown file descriptor ");
+            PutString(number.c_str());
+            NewLine();
+            CompilerFailure(state);
           }
        }
       else
@@ -682,7 +700,7 @@ void OpenCommand(const std::string& line, const std::string& cmd, CompilerState&
    if ('(' != line[state.charNo])
     {
       std::string fileName;
-      if (extractLabel(line, state.charNo, ',', true, fileName) && // There shouldn't be a comma...
+      if (extractLabel(line, state.charNo, '\0', true, fileName) &&
             (state.files.end() != state.files.find(fileName)))
        {
          ConsumeStr(state, fileName);
@@ -697,20 +715,41 @@ void OpenCommand(const std::string& line, const std::string& cmd, CompilerState&
     }
    else
     {
-      // TODO : list of files
-      UnimplementedCommand(line, cmd, state, env);
+      ++state.charNo;
+      std::string fileName;
+      bool done = false;
+      do
+       {
+         if ((extractLabel(line, state.charNo, ',', true, fileName) || extractLabel(line, state.charNo, ')', true, fileName)) &&
+               (state.files.end() != state.files.find(fileName)))
+          {
+            ConsumeStr(state, fileName);
+            fileNos.push_back(state.files[fileName]);
+          }
+         else
+          {
+            PutString("Bad file variable in OPEN");
+            NewLine();
+            CompilerFailure(state);
+          }
+         if (',' != line[state.charNo])
+          {
+            done = true;
+          }
+         ++state.charNo;
+       }
+      while (!done);
     }
    size_t lineEnd = state.charNo;
    env.icode.emplace_back(std::make_unique<OpenImpl>(state.lineNo, lineStart, lineEnd, fileNos, mode));
    NextLine(state, env);
  }
 
-std::unique_ptr<StringExpr> Compiler::StringExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, const Environment& env)
+bool StringLiteral(const std::string& line, size_t& charNo, std::string& result)
  {
-   std::unique_ptr<StringExpr> value;
+   bool retVal = false;
    if ('\'' == line[charNo])
     {
-      std::string result;
       ++charNo;
       while (('\'' != line[charNo]) && ('\0' != line[charNo]))
        {
@@ -724,6 +763,20 @@ std::unique_ptr<StringExpr> Compiler::StringExpression(const std::string& line, 
       if ('\'' == line[charNo])
        {
          charNo++;
+         retVal = true;
+       }
+    }
+   return retVal;
+ }
+
+std::unique_ptr<StringExpr> Compiler::StringExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, const Environment& env)
+ {
+   std::unique_ptr<StringExpr> value;
+   if ('\'' == line[charNo])
+    {
+      std::string result;
+      if (StringLiteral(line, charNo, result))
+       {
          value = std::make_unique<StringConst>(result);
        }
     }
@@ -1573,6 +1626,112 @@ void AssignmentCommand(const std::string& line, const std::string&, CompilerStat
    else
     {
       NumberAssignment(line, state, env);
+    }
+   NextLine(state, env);
+ }
+
+void DefineCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   std::string label;
+   ConsumeStr(state, cmd);
+   bool moreVars = false;
+   do
+    {
+      if (extractLabel(line, state.charNo, ':', false, label))
+       {
+         ConsumeStr(state, label, true);
+         std::string value;
+         if (StringLiteral(line, state.charNo, value))
+          {
+            ConsumeStr(state, value);
+            env.symbols.strVars[label] = env.strVars.size();
+            env.strVars.emplace_back(StrVar(label, value.length(), value));
+          }
+         else
+          {
+            PutString("Bad DEFINE value");
+            NewLine();
+            CompilerFailure(state);
+          }
+       }
+      else
+       {
+         PutString("Bad DEFINE name");
+         NewLine();
+         CompilerFailure(state);
+       }
+      moreVars = ',' == line[state.charNo];
+      if (moreVars)
+       {
+         ConsumeStr(state, ",");
+       }
+   } while (true == moreVars);
+   NextLine(state, env);
+ }
+
+void EndFileCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd);
+
+   std::vector<size_t> fileNos;
+   bool done = false;
+   do
+    {
+      std::string fileName;
+      if (extractLabel(line, state.charNo, ',', true, fileName) &&
+            (state.files.end() != state.files.find(fileName)))
+       {
+         ConsumeStr(state, fileName);
+         fileNos.push_back(state.files[fileName]);
+       }
+      else
+       {
+         PutString("Bad file variable in ENDFILE");
+         NewLine();
+         CompilerFailure(state);
+       }
+      done = ',' != line[state.charNo];
+      if (!done)
+       {
+         ++state.charNo;
+       }
+    } while (!done);
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<EndFileImpl>(state.lineNo, lineStart, lineEnd, fileNos));
+   NextLine(state, env);
+ }
+
+void CallCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd);
+   std::string function;
+   if (extractLabel(line, state.charNo, '(', true, function))
+    {
+      if ("STAT" == function)
+       {
+         ConsumeStr(state, function);
+         size_t lineEnd = state.charNo;
+         env.icode.emplace_back(std::make_unique<StatCallImpl>(state.lineNo, lineStart, lineEnd));
+       }
+      else if ("IOERR" == function)
+       {
+         ConsumeStr(state, function);
+         size_t lineEnd = state.charNo;
+         env.icode.emplace_back(std::make_unique<StatCallImpl>(state.lineNo, lineStart, lineEnd));
+       }
+      else
+       {
+         //size_t lineEnd = state.charNo;
+         throw Unimplemented("Generic call");
+       }
+    }
+   else
+    {
+      PutString("Bad CALL");
+      NewLine();
+      CompilerFailure(state);
     }
    NextLine(state, env);
  }

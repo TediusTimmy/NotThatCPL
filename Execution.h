@@ -373,4 +373,19 @@ public:
    virtual void execute(Environment&) override;
  };
 
+class EndFileImpl final : public ICode
+ {
+public:
+   std::vector<size_t> fileNos;
+   EndFileImpl (size_t lineNo, size_t lineStart, size_t lineEnd, const std::vector<size_t>& fileNos) : ICode(lineNo, lineStart, lineEnd), fileNos(fileNos) { }
+   virtual void execute(Environment&) override;
+ };
+
+class StatCallImpl final : public ICode
+ {
+public:
+   StatCallImpl (size_t lineNo, size_t lineStart, size_t lineEnd) : ICode(lineNo, lineStart, lineEnd) { }
+   virtual void execute(Environment&) override;
+ };
+
 #endif /* NOTTHATCPL_EXCECUTION_H */

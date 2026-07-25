@@ -141,3 +141,8 @@ void Backspace(void)
  {
    std::cout << '\b';
  }
+
+void Flush(void)
+ {
+   std::cout.flush();
+ }

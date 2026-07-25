@@ -9,3 +9,4 @@ They are not mine. They are not subject to the license, as I can't relicense the
 
 * hello.cepl
 * PE01C.cepl
+* basiced.cepl

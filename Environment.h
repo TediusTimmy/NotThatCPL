@@ -75,6 +75,8 @@ public:
    virtual void putLine(const std::string& val) = 0; // putStr(); NewLine();
    virtual bool getStr(std::string&) = 0;
    virtual char getChar(void) = 0;
+   virtual void rewind(void) = 0;
+   virtual void flush(void) = 0;
  };
 
 class DebugInfo final

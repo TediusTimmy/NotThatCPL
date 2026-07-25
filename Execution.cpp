@@ -209,3 +209,25 @@ void NumAssignImpl::execute(Environment& env)
       env.intVars[env.symbols.intVars["STATUS"]].setValue(2);
     }
  }
+
+void EndFileImpl::execute(Environment& env)
+ {
+   for (size_t fileNo : fileNos)
+    {
+      env.files[fileNo]->flush();
+    }
+ }
+
+void StatCallImpl::execute(Environment& env)
+ {
+   int64_t stat = env.intVars[env.symbols.intVars["STATUS"]].getValue();
+   if (stat != 0)
+    {
+      PutString("*****   I/O ERROR   ADDRESS=");
+      PutString(std::to_string(lineNo).c_str());
+      PutString("   STATUS=");
+      PutString(std::to_string(stat).c_str());
+      PutString("   *****");
+      throw StopCode(100);
+    }
+ }
