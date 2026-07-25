@@ -624,7 +624,8 @@ void FormatCommand(const std::string& line, const std::string& cmd, CompilerStat
       size_t next = state.charNo;
       do
        {
-         switch (line[next + 1U])
+         ++next;
+         switch (line[next])
           {
          case 'C':
             format.push_back(STRING);
