@@ -204,6 +204,21 @@ int main (int argc, char ** argv)
                   NewLine();
                 }
              }
+            else if ("PRINTN" == command.substr(0U, 6U))
+             {
+               size_t loc = 6U;
+               std::unique_ptr<NumberExpr> expr = Compiler::NumberExpression(command, loc, ',', true, env);
+               if (nullptr != expr.get())
+                {
+                  PutString(expr->toString(env).c_str());
+                  NewLine();
+                }
+               else
+                {
+                  PutString("Didn't understand that.");
+                  NewLine();
+                }
+             }
           } while (false == understood);
 
          try

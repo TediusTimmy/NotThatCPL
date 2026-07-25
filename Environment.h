@@ -96,8 +96,9 @@ public:
    std::vector<std::unique_ptr<ICode> > icode;
    size_t entry;
    size_t pc;
+   bool numericError;
 
-   Environment() : entry(static_cast<size_t>(-1)), pc(0U) { }
+   Environment() : entry(static_cast<size_t>(-1)), pc(0U), numericError(false) { }
  };
 
 #endif /* NOTTHATCPL_ENVIRONMENT_H */

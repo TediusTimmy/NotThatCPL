@@ -47,12 +47,22 @@ void StrVar::setValue(const std::string& val)
     }
  }
 
-std::string StringVar::eval(const Environment& env)
+void IntVar::setValue(int64_t val)
+ {
+   value = val;
+   if ((value > size) || (value < -(size + 1)))
+    {
+      PutString("Overflow in assignment to variable ");
+      PutString(name.c_str());
+    }
+ }
+
+std::string StringVar::eval(const Environment& env) const
  {
    return env.strVars[var].getValue();
  }
 
-int64_t NumberVar::eval(const Environment& env)
+int64_t NumberVar::eval(Environment& env) const
  {
    return env.intVars[var].getValue();
  }
@@ -85,12 +95,12 @@ void OpenImpl::execute(Environment& env)
 
 void WritenImpl::execute(Environment& env)
  {
-   env.files[fileNo]->putStr(value->eval(env));
+   env.files[fileNo]->putStr(value->toString(env));
  }
 
 void WriteImpl::execute(Environment& env)
  {
-   env.files[fileNo]->putLine(value->eval(env));
+   env.files[fileNo]->putLine(value->toString(env));
  }
 
 void ClsImpl::execute(Environment& env)
@@ -110,7 +120,7 @@ void ReadImpl::execute(Environment& env)
        }
       else
        {
-         // TODO : set STATUS
+         env.intVars[env.symbols.intVars["STATUS"]].setValue(1);
        }
     }
  }
@@ -154,5 +164,48 @@ void GotoImpl::fixJumps(const std::map<std::string, size_t>& labels, const std::
       PutString(label.c_str());
       NewLine();
       throw StopCode(3);
+    }
+ }
+
+void IfImpl::execute(Environment& env)
+ {
+   bool cond = condition->eval(env);
+   if (!cond)
+    {
+      env.pc = orElse - 1U; // Account for auto increment
+    }
+ }
+
+void ElseImpl::execute(Environment& env)
+ {
+   env.pc = gotoDest - 1U; // Account for auto increment
+ }
+
+void IncrImpl::execute(Environment& env)
+ {
+   env.intVars[var].setValue(env.intVars[var].getValue() + val);
+ }
+
+void CursImpl::execute(Environment& env)
+ {
+   std::string temp = str->eval(env);
+   temp.resize(1U);
+   PutString(temp.c_str());
+   Backspace();
+ }
+
+void StrAssignImpl::execute(Environment& env)
+ {
+   env.strVars[var].setValue(val->eval(env));
+ }
+
+void NumAssignImpl::execute(Environment& env)
+ {
+   // This dance keeps the debugger from setting STATUS.
+   env.numericError = false;
+   env.intVars[var].setValue(val->eval(env));
+   if (true == env.numericError)
+    {
+      env.intVars[env.symbols.intVars["STATUS"]].setValue(2);
     }
  }

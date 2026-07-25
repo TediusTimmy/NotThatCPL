@@ -40,3 +40,19 @@ Only supports one `access` per command invocation.
    OPEN access file
    OPEN access (file, ...)
 ```
+
+
+## CURS
+
+Ignores the file - always the one and only screen. Also, asserts that the count is 1.
+Doesn't check that the string has length one, just uses it's first character.
+
+
+## MIN and MAX
+
+Only take two arguments.
+
+
+## Assignment
+
+Only handles one left-hand-side value.

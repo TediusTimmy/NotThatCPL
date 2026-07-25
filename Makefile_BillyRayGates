@@ -28,7 +28,7 @@ release: all
 debug: all
 
 
-bin/CPL.exe: obj/CPL.obj obj/Screen.obj obj/SigInt.obj obj/Compiler.obj obj/Execution.obj | bin
+bin/CPL.exe: obj/CPL.obj obj/Screen.obj obj/SigInt.obj obj/Compiler.obj obj/Execution.obj obj/Expression.obj | bin
 	$(CCP) $(CFLAGS) $(BFLAGS) -o bin/CPL.exe obj/*.obj
 
 obj/CPL.obj: NotThatCPL.cpp | obj
@@ -45,6 +45,9 @@ obj/Compiler.obj: Compiler.cpp | obj
 
 obj/Execution.obj: Execution.cpp | obj
 	$(CCP) $(CFLAGS) -c -o obj/Execution.obj Execution.cpp
+
+obj/Expression.obj: Expression.cpp | obj
+	$(CCP) $(CFLAGS) -c -o obj/Expression.obj Expression.cpp
 
 bin:
 	mkdir bin

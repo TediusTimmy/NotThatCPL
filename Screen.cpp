@@ -136,3 +136,8 @@ void ClearInputFlags(void)
    std::cin.clear();
    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
  }
+
+void Backspace(void)
+ {
+   std::cout << '\b';
+ }

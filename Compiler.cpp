@@ -270,6 +270,12 @@ void StopCommand(const std::string&, const std::string&, CompilerState&, Environ
 void CloseCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void IfsCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void GotoCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void SetCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void IfCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void IncrCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void LoopWhileCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void CursCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void AssignmentCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 
 // TODO : remove
 void TODO(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -316,7 +322,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("TABLE", TODO));
    result.emplace_back(std::make_pair("RECORD", TODO3));
 
-   result.emplace_back(std::make_pair("SET", TODO));
+   result.emplace_back(std::make_pair("SET", SetCommand));
    result.emplace_back(std::make_pair("DEFINE", TODO));
 
    result.emplace_back(std::make_pair("EXTERNAL", TODO));
@@ -340,13 +346,13 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    // This is why we have a table:
    result.emplace_back(std::make_pair("IFSTRING", IfsCommand));
    result.emplace_back(std::make_pair("IFS", IfsCommand));
-   result.emplace_back(std::make_pair("IF", TODO));
-   result.emplace_back(std::make_pair("ELSE", TODO));
+   result.emplace_back(std::make_pair("IF", IfCommand));
+   result.emplace_back(std::make_pair("ELSE", UnimplementedCommand));
 
    result.emplace_back(std::make_pair("STOP", StopCommand));
    // This is why we have a table:
-   result.emplace_back(std::make_pair("ENDLOOP", TODO));
-   result.emplace_back(std::make_pair("ENDDO", TODO));
+   result.emplace_back(std::make_pair("ENDLOOP", UnimplementedCommand));
+   result.emplace_back(std::make_pair("ENDDO", UnimplementedCommand));
    result.emplace_back(std::make_pair("ENDFILE", TODO));
    result.emplace_back(std::make_pair("END", EndCommand));
 
@@ -357,7 +363,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("GOTO", GotoCommand));
 
    // This is why we have a table:
-   result.emplace_back(std::make_pair("LOOPWHILE", TODO));
+   result.emplace_back(std::make_pair("LOOPWHILE", LoopWhileCommand));
    result.emplace_back(std::make_pair("LOOP", TODO)); // This is a for loop
    // This is why we have a table:
    result.emplace_back(std::make_pair("RETURNTO", TODO)); // I like to call this GO FUCK YOURSELF
@@ -366,15 +372,15 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("GTIME(INTEGER,", TODO));
    result.emplace_back(std::make_pair("GTIME(STRING,", TODO));
    result.emplace_back(std::make_pair("CURSOR", TODO));
-   result.emplace_back(std::make_pair("CURS", TODO));
+   result.emplace_back(std::make_pair("CURS", CursCommand));
    result.emplace_back(std::make_pair("CURP", TODO));
 
    // You would think that INCR would be sufficient, but we want to consume the whole word:
-   result.emplace_back(std::make_pair("INCREMENT", TODO));
-   result.emplace_back(std::make_pair("INCR", TODO));
+   result.emplace_back(std::make_pair("INCREMENT", IncrCommand));
+   result.emplace_back(std::make_pair("INCR", IncrCommand));
    // You would think that DECR would be sufficient, but we want to consume the whole word:
-   result.emplace_back(std::make_pair("DECREMENT", TODO));
-   result.emplace_back(std::make_pair("DECR", TODO));
+   result.emplace_back(std::make_pair("DECREMENT", IncrCommand));
+   result.emplace_back(std::make_pair("DECR", IncrCommand));
 
    result.emplace_back(std::make_pair("DO", UnimplementedCommand)); // This should never actually be used when returned.
    return result;
@@ -394,7 +400,7 @@ std::pair<std::string, void (*)(const std::string&, const std::string&, Compiler
          return needle;
        }
     }
-   return std::make_pair("AssignmentMaybe", TODO);
+   return std::make_pair("AssignmentMaybe", AssignmentCommand);
  }
 
 bool isValidLabel(const std::string& line, size_t start, size_t end)
@@ -588,7 +594,7 @@ void IntegerCommand(const std::string& line, const std::string& cmd, CompilerSta
     {
       if (extractLabel(line, state.charNo, ',', true, label))
        {
-         ConsumeStr(state, label, false);
+         ConsumeStr(state, label);
          env.symbols.intVars[label] = env.intVars.size();
          env.intVars.emplace_back(IntVar(label, ('?' == label[0]) ? 1ULL << 47U : 1ULL << 31U, 0U));
        }
@@ -732,6 +738,16 @@ std::unique_ptr<StringExpr> Compiler::StringExpression(const std::string& line, 
    return value;
  }
 
+std::unique_ptr<NumberExpr> Compiler::NumberExpression(const std::string& line, size_t& charNo, char delim, bool orEOL, Environment& env)
+ {
+   std::unique_ptr<NumberExpr> value = RealExpression(line, charNo, env);
+   if ((line[charNo] != delim) && !(orEOL && ('\0' == line[charNo])))
+    {
+      return std::unique_ptr<NumberExpr>();
+    }
+   return value;
+ }
+
 void WriteCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
  {
    size_t lineStart = state.charNo;
@@ -750,20 +766,39 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
    if (line.substr(state.charNo, 5U) != "EJECT")
     {
       std::unique_ptr<StringExpr> value = Compiler::StringExpression(line, state.charNo, ',', true, env);
-      if (nullptr == value.get())
+      if (nullptr != value.get())
        {
-         PutString("Bad WRITE value");
-         NewLine();
-         CompilerFailure(state);
-       }
-      size_t lineEnd = state.charNo;
-      if ("WRITE" == cmd)
-       {
-         env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], value));
+         size_t lineEnd = state.charNo;
+         if ("WRITE" == cmd)
+          {
+            env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(value)));
+          }
+         else
+          {
+            env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(value)));
+          }
        }
       else
        {
-         env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], value));
+         std::unique_ptr<NumberExpr> value = Compiler::NumberExpression(line, state.charNo, ',', true, env);
+         if (nullptr != value.get())
+          {
+            size_t lineEnd = state.charNo;
+            if ("WRITE" == cmd)
+             {
+               env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(value)));
+             }
+            else
+             {
+               env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(value)));
+             }
+          }
+         else
+          {
+            PutString("Bad WRITE value");
+            NewLine();
+            CompilerFailure(state);
+          }
        }
     }
    else
@@ -893,12 +928,11 @@ void IfsCommand(const std::string& line, const std::string& cmd, CompilerState& 
    std::unique_ptr<StringExpr> lhs = Compiler::StringExpression(line, state.charNo, '.', false, env);
    if (nullptr == lhs.get())
     {
-      PutString("Bad IFS condition");
+      PutString("Bad IFS condition lhs");
       NewLine();
       CompilerFailure(state);
     }
 
-   // TODO .EQ. vs .HEQ.
    std::string predicate = line.substr(state.charNo, 4U);
    if ((0U != predicate.length()) && ('.' != predicate[predicate.length() - 1U]))
     {
@@ -909,7 +943,7 @@ void IfsCommand(const std::string& line, const std::string& cmd, CompilerState& 
    std::unique_ptr<StringExpr> rhs = Compiler::StringExpression(line, state.charNo, ')', false, env);
    if (nullptr == rhs.get())
     {
-      PutString("Bad IFS condition");
+      PutString("Bad IFS condition rhs");
       NewLine();
       CompilerFailure(state);
     }
@@ -983,7 +1017,7 @@ void IfsCommand(const std::string& line, const std::string& cmd, CompilerState& 
     }
    size_t orElse = env.icode.size();
 
-   env.icode[instr] = std::make_unique<IfsImpl>(startLine, lineStart, lineEnd, condition, orElse);
+   env.icode[instr] = std::make_unique<IfsImpl>(startLine, lineStart, lineEnd, std::move(condition), orElse);
  }
 
 void GotoCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -1005,5 +1039,539 @@ void GotoCommand(const std::string& line, const std::string& cmd, CompilerState&
 
    size_t lineEnd = state.charNo;
    env.icode.emplace_back(std::make_unique<GotoImpl>(state.lineNo, lineStart, lineEnd, label));
+   NextLine(state, env);
+ }
+
+void SetCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   std::string label;
+   ConsumeStr(state, cmd);
+   bool moreVars = false;
+   do
+    {
+      if (extractLabel(line, state.charNo, ':', false, label))
+       {
+         ConsumeStr(state, label, true);
+         std::string initial;
+         if (IntegerLiteral(line, state.charNo, ',', true, initial))
+          {
+            ConsumeStr(state, initial);
+            env.symbols.intVars[label] = env.intVars.size(); // Assume size_t == unsigned long long
+            env.intVars.emplace_back(IntVar(label, ('?' == label[0]) ? 1ULL << 47U : 1ULL << 31U, std::stoull(initial)));
+          }
+         else
+          {
+            PutString("Bad SET value");
+            NewLine();
+            CompilerFailure(state);
+          }
+       }
+      else
+       {
+         PutString("Bad SET name");
+         NewLine();
+         CompilerFailure(state);
+       }
+      moreVars = ',' == line[state.charNo];
+      if (moreVars)
+       {
+         ConsumeStr(state, ",");
+       }
+   } while (true == moreVars);
+   NextLine(state, env);
+ }
+
+void DoCommand(CompilerState& state, Environment& env)
+ {
+   std::string nextLine;
+   if (getNextLine(state, env, nextLine))
+    {
+      std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> next = getNextCommand(nextLine, state.charNo);
+      if ("DO" != next.first)
+       {
+         next.second(nextLine, next.first, state, env);
+       }
+      else
+       {
+         NextLine(state, env);
+         bool moreCommands = true;
+         while (true == moreCommands)
+          {
+            if (getNextLine(state, env, nextLine))
+             {
+               std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> next = getNextCommand(nextLine, state.charNo);
+               if ("ENDDO" != next.first)
+                {
+                  next.second(nextLine, next.first, state, env);
+                }
+               else
+                {
+                  ConsumeStr(state, next.first);
+                  moreCommands = false;
+                }
+             }
+            else
+             {
+               moreCommands = false;
+             }
+          }
+         NextLine(state, env); // Consume ENDDO
+       }
+    }
+ }
+
+void IfCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t startLine = state.lineNo;
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd, true); // Don't check for '('
+
+   std::unique_ptr<NumberExpr> lhs = Compiler::NumberExpression(line, state.charNo, '.', false, env);
+   if (nullptr == lhs.get())
+    {
+      PutString("Bad IF condition lhs");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   std::string predicate = line.substr(state.charNo, 4U);
+   ConsumeStr(state, predicate);
+
+   std::unique_ptr<NumberExpr> rhs = Compiler::NumberExpression(line, state.charNo, ')', false, env);
+   if (nullptr == rhs.get())
+    {
+      PutString("Bad IF condition rhs");
+      NewLine();
+      CompilerFailure(state);
+    }
+   ++state.charNo; // Consume ')'
+
+   std::unique_ptr<Predicate<NumberExpr> > condition;
+   if (".EQ." == predicate)
+    {
+      condition = std::make_unique<Equals<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else if (".NE." == predicate)
+    {
+      condition = std::make_unique<NotEquals<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else if (".LE." == predicate)
+    {
+      condition = std::make_unique<LessEqual<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else if (".GE." == predicate)
+    {
+      condition = std::make_unique<GreaterEqual<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else if (".GT." == predicate)
+    {
+      condition = std::make_unique<Greater<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else if (".LT." == predicate)
+    {
+      condition = std::make_unique<Less<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else
+    {
+      PutString("Bad relation in IF");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   size_t instr = env.icode.size();
+   env.icode.emplace_back(std::unique_ptr<ICode>());
+   size_t lineEnd = state.charNo;
+   DoCommand(state, env);
+   size_t orElse = env.icode.size();
+   env.icode[instr] = std::make_unique<IfImpl>(startLine, lineStart, lineEnd, std::move(condition), orElse);
+
+   std::string nextLine;
+   if (getNextLine(state, env, nextLine))
+    {
+      std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> next = getNextCommand(nextLine, state.charNo);
+      if ("ELSE" == next.first)
+       {
+         static_cast<IfImpl*>(env.icode[instr].get())->orElse++; // Jump PAST the ELSE branch
+         startLine = state.lineNo;
+         lineStart = state.charNo;
+         ConsumeStr(state, next.first); // Consume ELSE
+
+         // Unconditional branch to end of ELSE commands
+         instr = env.icode.size();
+         env.icode.emplace_back(std::unique_ptr<ICode>());
+         lineEnd = state.charNo;
+
+         DoCommand(state, env);
+
+         // Unconditional branch to end of ELSE commands
+         env.icode[instr] = std::make_unique<ElseImpl>(startLine, lineStart, lineEnd, env.icode.size());
+       }
+      // Else do nothing : ignore the next command
+    }
+ }
+
+void IncrCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ConsumeStr(state, cmd);
+   if (extractLabel(line, state.charNo, ',', true, label) && (env.symbols.intVars.end() != env.symbols.intVars.find(label)))
+    {
+      ConsumeStr(state, label);
+      int64_t incr = 1;
+      if (',' == line[state.charNo])
+       {
+         ++state.charNo;
+         std::string val;
+         if (IntegerLiteral(line, state.charNo, ';', true, val))
+          {
+            ConsumeStr(state, val);
+            incr = std::stoull(val);
+          }
+         else
+          {
+            PutString("Bad INCR value");
+            NewLine();
+            CompilerFailure(state);
+          }
+       }
+      size_t lineEnd = state.charNo;
+      if ('D' == cmd[0])
+       {
+         // Then this was actually DECR!
+         incr = -incr;
+       }
+      env.icode.emplace_back(std::make_unique<IncrImpl>(state.lineNo, lineStart, lineEnd, env.symbols.intVars[label], incr));
+    }
+   else
+    {
+      PutString("Bad INTEGER name");
+      NewLine();
+      CompilerFailure(state);
+    }
+   NextLine(state, env);
+ }
+
+void LoopWhileCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t startLine = state.lineNo;
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd, true); // Don't check for '('
+
+   std::unique_ptr<NumberExpr> lhs = Compiler::NumberExpression(line, state.charNo, '.', false, env);
+   if (nullptr == lhs.get())
+    {
+      PutString("Bad LOOP WHILE condition lhs");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   std::string predicate = line.substr(state.charNo, 4U);
+   ConsumeStr(state, predicate);
+
+   std::unique_ptr<NumberExpr> rhs = Compiler::NumberExpression(line, state.charNo, ')', false, env);
+   if (nullptr == rhs.get())
+    {
+      PutString("Bad LOOP WHILE condition rhs");
+      NewLine();
+      CompilerFailure(state);
+    }
+   ++state.charNo; // Consume ')'
+
+   std::unique_ptr<Predicate<NumberExpr> > condition;
+   if (".EQ." == predicate)
+    {
+      condition = std::make_unique<Equals<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else if (".NE." == predicate)
+    {
+      condition = std::make_unique<NotEquals<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else if (".LE." == predicate)
+    {
+      condition = std::make_unique<LessEqual<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else if (".GE." == predicate)
+    {
+      condition = std::make_unique<GreaterEqual<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else if (".GT." == predicate)
+    {
+      condition = std::make_unique<Greater<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else if (".LT." == predicate)
+    {
+      condition = std::make_unique<Less<NumberExpr> >(std::move(lhs), std::move(rhs));
+    }
+   else
+    {
+      PutString("Bad relation in LOOP WHILE");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   size_t instr = env.icode.size();
+   env.icode.emplace_back(std::unique_ptr<ICode>());
+   size_t lineEnd = state.charNo;
+
+   std::string nextLine;
+   bool moreCommands = true;
+   while (true == moreCommands)
+    {
+      if (getNextLine(state, env, nextLine))
+       {
+         std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> next = getNextCommand(nextLine, state.charNo);
+         if ("ENDLOOP" != next.first)
+          {
+            next.second(nextLine, next.first, state, env);
+          }
+         else
+          {
+            env.icode.emplace_back(std::make_unique<ElseImpl>(state.lineNo, state.charNo, state.charNo + next.first.length(), instr));
+            ConsumeStr(state, next.first);
+            moreCommands = false;
+          }
+       }
+      else
+       {
+         moreCommands = false;
+       }
+    }
+   NextLine(state, env); // Consume ENDLOOP
+
+   size_t orElse = env.icode.size();
+   env.icode[instr] = std::make_unique<IfImpl>(startLine, lineStart, lineEnd, std::move(condition), orElse);
+ }
+
+void CursCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ConsumeStr(state, cmd, true);
+   if (extractLabel(line, state.charNo, ',', false, label))
+    {
+      ConsumeStr(state, label, true);
+    }
+   else
+    {
+      PutString("Bad CURS");
+      NewLine();
+      CompilerFailure(state);
+    }
+   if (IntegerLiteral(line, state.charNo, ',', false, label) && ("1" == label))
+    {
+      ConsumeStr(state, label, true);
+    }
+   else
+    {
+      PutString("Bad CURS length");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   std::unique_ptr<StringExpr> str = Compiler::StringExpression(line, state.charNo, ')', false, env);
+   if (nullptr == str.get())
+    {
+      PutString("Bad CURS string");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<CursImpl>(state.lineNo, lineStart, lineEnd, std::move(str)));
+
+   NextLine(state, env);
+ }
+
+void StringAssignment(const std::string& line, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ++state.charNo; // Assume '
+   size_t varNo;
+   if (extractLabel(line, state.charNo, '\'', false, label) && (env.symbols.strVars.end() != env.symbols.strVars.find(label)))
+    {
+      ConsumeStr(state, label, true);
+      varNo = env.symbols.strVars[label];
+    }
+   else
+    {
+      PutString("Bad string assignment target");
+      NewLine();
+      CompilerFailure(state);
+    }
+   if ('=' != line[state.charNo])
+    {
+      PutString("I thought this was assignment, but I may have been mistaken");
+      NewLine();
+      CompilerFailure(state);
+    }
+   ++state.charNo;
+   std::unique_ptr<StringExpr> result;
+   if ('\'' == line[state.charNo])
+    {
+      std::string temp;
+      ++state.charNo;
+      while (('\'' != line[state.charNo]) && ('\0' != line[state.charNo]))
+       {
+         temp += line[state.charNo++];
+       }
+      if ('\'' == line[state.charNo])
+       {
+         temp = Compiler::DeblankStr(temp);
+         size_t charNo = 0U;
+         bool done = false;
+         do
+          {
+            std::string var;
+            if (extractLabel(temp, charNo, '+', true, var) && (env.symbols.strVars.end() != env.symbols.strVars.find(var)))
+             {
+               charNo += var.length();
+               std::unique_ptr<StringExpr> value = std::make_unique<StringVar>(env.symbols.strVars[var]);
+               if (nullptr == result.get())
+                {
+                  result = std::move(value);
+                }
+               else
+                {
+                  std::unique_ptr<StringExpr> plus = std::make_unique<StringCat>(std::move(result), std::move(value));
+                  result = std::move(plus);
+                }
+             }
+            else
+             {
+               PutString("Bad string assignment value");
+               NewLine();
+               CompilerFailure(state);
+             }
+            if ('+' == temp[charNo])
+             {
+               ++charNo;
+             }
+            else
+             {
+               done = true;
+             }
+          }
+         while (!done);
+         ++state.charNo;
+       }
+      else
+       {
+         PutString("No terminator");
+         NewLine();
+         CompilerFailure(state);
+       }
+    }
+   else if ('"' == line[state.charNo])
+    {
+      std::string temp;
+      ++state.charNo;
+      while (('"' != line[state.charNo]) && ('\0' != line[state.charNo]))
+       {
+         temp += line[state.charNo++];
+       }
+      if ('"' == line[state.charNo])
+       {
+         temp = Compiler::DeblankStr(temp);
+         size_t charNo = 0U;
+         bool done = false;
+         do
+          {
+            std::unique_ptr<StringExpr> value = Compiler::StringExpression(temp, charNo, '+', true, env);
+            if (nullptr != value)
+             {
+               if (nullptr == result.get())
+                {
+                  result = std::move(value);
+                }
+               else
+                {
+                  std::unique_ptr<StringExpr> plus = std::make_unique<StringCat>(std::move(result), std::move(value));
+                  result = std::move(plus);
+                }
+             }
+            else
+             {
+               PutString("Bad string assignment value");
+               NewLine();
+               CompilerFailure(state);
+             }
+            if ('+' == temp[charNo])
+             {
+               ++charNo;
+             }
+            else
+             {
+               done = true;
+             }
+          }
+         while (!done);
+         ++state.charNo;
+       }
+      else
+       {
+         PutString("No terminator");
+         NewLine();
+         CompilerFailure(state);
+       }
+    }
+   else
+    {
+      PutString("Bad string assignment value");
+      NewLine();
+      CompilerFailure(state);
+    }
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<StrAssignImpl>(state.lineNo, lineStart, lineEnd, varNo, std::move(result)));
+ }
+
+void NumberAssignment(const std::string& line, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   size_t varNo;
+   if (extractLabel(line, state.charNo, '=', false, label) && (env.symbols.intVars.end() != env.symbols.intVars.find(label)))
+    {
+      ConsumeStr(state, label);
+      varNo = env.symbols.intVars[label];
+    }
+   else
+    {
+      PutString("Bad assignment target");
+      NewLine();
+      CompilerFailure(state);
+    }
+   if ('=' != line[state.charNo])
+    {
+      PutString("I thought this was assignment, but I may have been mistaken");
+      NewLine();
+      CompilerFailure(state);
+    }
+   ++state.charNo;
+   std::unique_ptr<NumberExpr> value = Compiler::NumberExpression(line, state.charNo, '\\', true, env);
+   if (nullptr != value)
+    {
+      size_t lineEnd = state.charNo;
+      env.icode.emplace_back(std::make_unique<NumAssignImpl>(state.lineNo, lineStart, lineEnd, varNo, std::move(value)));
+    }
+   else
+    {
+      PutString("Bad assignment value");
+      NewLine();
+      CompilerFailure(state);
+    }
+ }
+
+void AssignmentCommand(const std::string& line, const std::string&, CompilerState& state, Environment& env)
+ {
+   if ('\'' == line[state.charNo])
+    {
+      StringAssignment(line, state, env);
+    }
+   else
+    {
+      NumberAssignment(line, state, env);
+    }
    NextLine(state, env);
  }

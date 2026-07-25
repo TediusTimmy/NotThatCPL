@@ -47,5 +47,6 @@ void PutString(const char* const);
 void NewLine(void);
 void ClearScreen(void);
 void ClearInputFlags(void);
+void Backspace(void);
 
 #endif /* NOTTHATCPL_SCREEN_H */
