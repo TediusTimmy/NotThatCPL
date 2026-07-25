@@ -765,32 +765,32 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
     }
    if (line.substr(state.charNo, 5U) != "EJECT")
     {
-      std::unique_ptr<StringExpr> value = Compiler::StringExpression(line, state.charNo, ',', true, env);
-      if (nullptr != value.get())
+      std::unique_ptr<StringExpr> strVal = Compiler::StringExpression(line, state.charNo, ',', true, env);
+      if (nullptr != strVal.get())
        {
          size_t lineEnd = state.charNo;
          if ("WRITE" == cmd)
           {
-            env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(value)));
+            env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(strVal)));
           }
          else
           {
-            env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(value)));
+            env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(strVal)));
           }
        }
       else
        {
-         std::unique_ptr<NumberExpr> value = Compiler::NumberExpression(line, state.charNo, ',', true, env);
-         if (nullptr != value.get())
+         std::unique_ptr<NumberExpr> numVal = Compiler::NumberExpression(line, state.charNo, ',', true, env);
+         if (nullptr != numVal.get())
           {
             size_t lineEnd = state.charNo;
             if ("WRITE" == cmd)
              {
-               env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(value)));
+               env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(numVal)));
              }
             else
              {
-               env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(value)));
+               env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(numVal)));
              }
           }
          else
@@ -1099,7 +1099,7 @@ void DoCommand(CompilerState& state, Environment& env)
           {
             if (getNextLine(state, env, nextLine))
              {
-               std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> next = getNextCommand(nextLine, state.charNo);
+               next = getNextCommand(nextLine, state.charNo);
                if ("ENDDO" != next.first)
                 {
                   next.second(nextLine, next.first, state, env);

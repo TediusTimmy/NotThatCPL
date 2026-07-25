@@ -87,7 +87,7 @@ class NumberExpr : public WritableExpr
  {
 public:
    virtual int64_t eval(Environment&) const = 0;
-   virtual std::string toString(Environment& env) const { return std::to_string(eval(env)); };
+   virtual std::string toString(Environment& env) const override { return std::to_string(eval(env)); };
  };
 
 class NumberConst final : public NumberExpr
@@ -115,7 +115,7 @@ public:
    I hear your voice calling out, to me,
    "You'll never be alone"
 */
-std::unique_ptr<NumberExpr> RealExpression(const std::string line, size_t& charNo, const Environment&);
+std::unique_ptr<NumberExpr> RealExpression(const std::string& line, size_t& charNo, const Environment&);
 
 template <typename T>
 class Predicate

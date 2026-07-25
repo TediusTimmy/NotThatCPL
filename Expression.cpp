@@ -108,7 +108,7 @@ class Negate final : public NumberExpr
  {
    std::unique_ptr<NumberExpr> arg;
 public:
-   Negate(std::unique_ptr<NumberExpr>&& arg) : arg(std::move(arg)) { }
+   explicit Negate(std::unique_ptr<NumberExpr>&& arg) : arg(std::move(arg)) { }
    virtual int64_t eval(Environment& env) const override { return -arg->eval(env); }
  };
 
@@ -116,7 +116,7 @@ class Len final : public NumberExpr
  {
    size_t strVar;
 public:
-   Len(size_t strVar) : strVar(strVar) { }
+   explicit Len(size_t strVar) : strVar(strVar) { }
    virtual int64_t eval(Environment& env) const override { return static_cast<int64_t>(env.strVars[strVar].getValue().length()); }
  };
 
@@ -124,7 +124,7 @@ class Abs final : public NumberExpr
  {
    std::unique_ptr<NumberExpr> arg;
 public:
-   Abs(std::unique_ptr<NumberExpr>&& arg) : arg(std::move(arg)) { }
+   explicit Abs(std::unique_ptr<NumberExpr>&& arg) : arg(std::move(arg)) { }
    virtual int64_t eval(Environment& env) const override { return std::abs(arg->eval(env)); }
  };
 
@@ -132,7 +132,7 @@ class Sgn final : public NumberExpr
  {
    std::unique_ptr<NumberExpr> arg;
 public:
-   Sgn(std::unique_ptr<NumberExpr>&& arg) : arg(std::move(arg)) { }
+   explicit Sgn(std::unique_ptr<NumberExpr>&& arg) : arg(std::move(arg)) { }
    virtual int64_t eval(Environment& env) const override
     {
       int64_t ARG = arg->eval(env);
@@ -149,9 +149,9 @@ public:
     {
       int64_t LHS = lhs->eval(env);
       int64_t RHS = rhs->eval(env);
-      int64_t ten = 1;
       if (RHS > 0)
        {
+         int64_t ten = 1;
          while (0 != RHS)
           {
             ten *= 10;
@@ -194,12 +194,12 @@ enum TokenType
 
 static std::string nextTolkien;
 static TokenType nextLewis;
-void getNextTolkien(const std::string line, size_t& charNo); // Updates nextTolkien
-std::unique_ptr<NumberExpr> primary(const std::string line, size_t& charNo, const Environment& env);
-std::unique_ptr<NumberExpr> term(const std::string line, size_t& charNo, const Environment& env);
-std::unique_ptr<NumberExpr> expression(const std::string line, size_t& charNo, const Environment& env);
+void getNextTolkien(const std::string& line, size_t& charNo); // Updates nextTolkien
+std::unique_ptr<NumberExpr> primary(const std::string& line, size_t& charNo, const Environment& env);
+std::unique_ptr<NumberExpr> term(const std::string& line, size_t& charNo, const Environment& env);
+std::unique_ptr<NumberExpr> expression(const std::string& line, size_t& charNo, const Environment& env);
 
-std::unique_ptr<NumberExpr> RealExpression(const std::string line, size_t& charNo, const Environment& env)
+std::unique_ptr<NumberExpr> RealExpression(const std::string& line, size_t& charNo, const Environment& env)
  {
    getNextTolkien(line, charNo);
    std::unique_ptr<NumberExpr> result = expression(line, charNo, env);
@@ -214,7 +214,7 @@ std::unique_ptr<NumberExpr> RealExpression(const std::string line, size_t& charN
    }
 
    // <term> { ( "+" | "-" ) <term> }
-std::unique_ptr<NumberExpr> expression(const std::string line, size_t& charNo, const Environment& env)
+std::unique_ptr<NumberExpr> expression(const std::string& line, size_t& charNo, const Environment& env)
  {
    std::unique_ptr<NumberExpr> result = term(line, charNo, env);
 
@@ -243,7 +243,7 @@ std::unique_ptr<NumberExpr> expression(const std::string line, size_t& charNo, c
  }
 
    // <primary> { ( "*" | "/" ) <primary> }
-std::unique_ptr<NumberExpr> term(const std::string line, size_t& charNo, const Environment& env)
+std::unique_ptr<NumberExpr> term(const std::string& line, size_t& charNo, const Environment& env)
  {
    std::unique_ptr<NumberExpr> result = primary(line, charNo, env);
 
@@ -279,7 +279,7 @@ std::unique_ptr<NumberExpr> term(const std::string line, size_t& charNo, const E
   getNextTolkien(line, charNo); \
 
    // "-" <primary> | <constant> | <variable> | "(" <expression> ")" | <function> "(" <arguments> ")"
-std::unique_ptr<NumberExpr> primary(const std::string line, size_t& charNo, const Environment& env)
+std::unique_ptr<NumberExpr> primary(const std::string& line, size_t& charNo, const Environment& env)
  {
    std::unique_ptr<NumberExpr> result;
 
@@ -381,7 +381,7 @@ std::unique_ptr<NumberExpr> primary(const std::string line, size_t& charNo, cons
    return result;
  }
 
-void getNextTolkien(const std::string line, size_t& charNo)
+void getNextTolkien(const std::string& line, size_t& charNo)
  {
    if (std::isdigit(line[charNo]))
     {
