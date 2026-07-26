@@ -50,7 +50,7 @@ public:
    int64_t size;
    int64_t getValue(size_t index) const;
    void setValue(size_t, int64_t);
-   IntVar(std::string name, size_t count, int64_t size, int64_t value) : value(count + 1U), name(name), size(size) { this->value[0] = value; }
+   IntVar(const std::string& name, size_t count, int64_t size, int64_t value) : value(count + 1U), name(name), size(size) { this->value[0] = value; }
  };
 
 class StrVar final
@@ -62,7 +62,7 @@ public:
    size_t size;
    const std::string& getValue(size_t index) const { return value[index]; }
    void setValue(size_t, const std::string&);
-   StrVar(std::string name, size_t count, size_t size, std::string value) : value(count + 1U), name(name), size(size) { this->value[0] = value; }
+   StrVar(const std::string& name, size_t count, size_t size, const std::string& value) : value(count + 1U), name(name), size(size) { this->value[0] = value; }
  };
 
 class FileDecl
