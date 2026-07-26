@@ -400,7 +400,7 @@ std::pair<std::string, void (*)(const std::string&, const std::string&, Compiler
    return std::make_pair("AssignmentMaybe", AssignmentCommand);
  }
 
-bool isValidLabel(const std::string& line, size_t start, size_t end)
+bool isValidLineLabel(const std::string& line, size_t start, size_t end)
  {
    std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> next = getNextCommand(line, start);
    if ((next.first == "AssignmentMaybe") || (next.first == "DO") || (next.first == "END")) // DONE is a valid label, and ENDTIME
@@ -424,12 +424,45 @@ bool isValidLabel(const std::string& line, size_t start, size_t end)
    return false;
  }
 
-bool extractLabel(const std::string& line, size_t start, char delim, bool orEOL, std::string& label)
+bool extractLineLabel(const std::string& line, size_t start, char delim, bool orEOL, std::string& label)
  {
    size_t end = line.find(delim, start);
    if ((std::string::npos == end) && (true == orEOL))
     {
       end = line.length();
+    }
+   if (std::string::npos != end)
+    {
+      bool good = isValidLineLabel(line, start, end);
+      if (true == good)
+       {
+         label = line.substr(start, end - start);
+       }
+      return good;
+    }
+   return false;
+ }
+
+bool isValidLabel(const std::string& line, size_t start, size_t end)
+ {
+   bool good = std::isalpha(line[start]) || (line[start] == '?' ) || (line[start] == '@');
+   for (size_t i = start + 1U; (i < end) && (true == good); ++i)
+    {
+      good = std::isalnum(line[i]) || (line[i] == '?' ) || (line[i] == '@');
+    }
+   return good;
+ }
+
+bool extractLabel(const std::string& line, size_t start, char delim, bool orEOL, std::string& label)
+ {
+   size_t end = line.find(delim, start);
+   if ((std::string::npos == end) && (true == orEOL))
+    {
+      end = line.find('\\', start);
+      if (std::string::npos == end)
+       {
+         end = line.length();
+       }
     }
    if (std::string::npos != end)
     {
@@ -449,7 +482,7 @@ void checkForLabel(const std::string& line, CompilerState& state, const Environm
    if (0U == state.charNo)
     {
       std::string label;
-      if (extractLabel(line, 0U, ':', false, label))
+      if (extractLineLabel(line, 0U, ':', false, label))
        {
          state.charNo = label.length() + 1U;
          state.labels[label] = env.icode.size();
@@ -1003,6 +1036,45 @@ void CloseCommand(const std::string& line, const std::string& cmd, CompilerState
    NextLine(state, env);
  }
 
+void DoCommand(CompilerState& state, Environment& env)
+ {
+   std::string nextLine;
+   if (getNextLine(state, env, nextLine))
+    {
+      std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> next = getNextCommand(nextLine, state.charNo);
+      if ("DO" != next.first)
+       {
+         next.second(nextLine, next.first, state, env);
+       }
+      else
+       {
+         NextLine(state, env);
+         bool moreCommands = true;
+         while (true == moreCommands)
+          {
+            if (getNextLine(state, env, nextLine))
+             {
+               next = getNextCommand(nextLine, state.charNo);
+               if ("ENDDO" != next.first)
+                {
+                  next.second(nextLine, next.first, state, env);
+                }
+               else
+                {
+                  ConsumeStr(state, next.first);
+                  moreCommands = false;
+                }
+             }
+            else
+             {
+               moreCommands = false;
+             }
+          }
+         NextLine(state, env); // Consume ENDDO
+       }
+    }
+ }
+
 void IfsCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
  {
    size_t startLine = state.lineNo;
@@ -1092,16 +1164,33 @@ void IfsCommand(const std::string& line, const std::string& cmd, CompilerState& 
    size_t instr = env.icode.size();
    env.icode.emplace_back(std::unique_ptr<ICode>());
    size_t lineEnd = state.charNo;
+   DoCommand(state, env);
+   size_t orElse = env.icode.size();
+   env.icode[instr] = std::make_unique<IfsImpl>(startLine, lineStart, lineEnd, std::move(condition), orElse);
 
    std::string nextLine;
    if (getNextLine(state, env, nextLine))
     {
       std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> next = getNextCommand(nextLine, state.charNo);
-      next.second(nextLine, next.first, state, env);
-    }
-   size_t orElse = env.icode.size();
+      if ("ELSE" == next.first)
+       {
+         static_cast<IfImpl*>(env.icode[instr].get())->orElse++; // Jump PAST the ELSE branch
+         startLine = state.lineNo;
+         lineStart = state.charNo;
+         ConsumeStr(state, next.first); // Consume ELSE
 
-   env.icode[instr] = std::make_unique<IfsImpl>(startLine, lineStart, lineEnd, std::move(condition), orElse);
+         // Unconditional branch to end of ELSE commands
+         instr = env.icode.size();
+         env.icode.emplace_back(std::unique_ptr<ICode>());
+         lineEnd = state.charNo;
+
+         DoCommand(state, env);
+
+         // Unconditional branch to end of ELSE commands
+         env.icode[instr] = std::make_unique<ElseImpl>(startLine, lineStart, lineEnd, env.icode.size());
+       }
+      // Else do nothing : ignore the next command
+    }
  }
 
 void GotoCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -1110,7 +1199,7 @@ void GotoCommand(const std::string& line, const std::string& cmd, CompilerState&
    ConsumeStr(state, cmd);
 
    std::string label;
-   if (extractLabel(line, state.charNo, ',', true, label))
+   if (extractLineLabel(line, state.charNo, ',', true, label))
     {
       ConsumeStr(state, label);
     }
@@ -1163,45 +1252,6 @@ void SetCommand(const std::string& line, const std::string& cmd, CompilerState& 
        }
    } while (true == moreVars);
    NextLine(state, env);
- }
-
-void DoCommand(CompilerState& state, Environment& env)
- {
-   std::string nextLine;
-   if (getNextLine(state, env, nextLine))
-    {
-      std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> next = getNextCommand(nextLine, state.charNo);
-      if ("DO" != next.first)
-       {
-         next.second(nextLine, next.first, state, env);
-       }
-      else
-       {
-         NextLine(state, env);
-         bool moreCommands = true;
-         while (true == moreCommands)
-          {
-            if (getNextLine(state, env, nextLine))
-             {
-               next = getNextCommand(nextLine, state.charNo);
-               if ("ENDDO" != next.first)
-                {
-                  next.second(nextLine, next.first, state, env);
-                }
-               else
-                {
-                  ConsumeStr(state, next.first);
-                  moreCommands = false;
-                }
-             }
-            else
-             {
-               moreCommands = false;
-             }
-          }
-         NextLine(state, env); // Consume ENDDO
-       }
-    }
  }
 
 void IfCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -1748,7 +1798,8 @@ void CallCommand(const std::string& line, const std::string& cmd, CompilerState&
       else
        {
          //size_t lineEnd = state.charNo;
-         throw Unimplemented("Generic call");
+         PutString("TODO : Generic call");
+         NewLine();
        }
     }
    else
@@ -1830,7 +1881,7 @@ void DirectCommand(const std::string& line, const std::string&, CompilerState& s
     }
    else
     {
-      throw Unimplemented(line);
+      throw Unimplemented(line); // DIRECT
     }
  }
 
@@ -1849,7 +1900,7 @@ void RecordCommand(const std::string& line, const std::string&, CompilerState& s
     }
    else
     {
-      throw Unimplemented(line);
+      throw Unimplemented(line); // RECORD
     }
  }
 
