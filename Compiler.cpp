@@ -133,6 +133,7 @@ public:
    std::map<std::string, size_t> subs;
    std::map<std::string, size_t> files;
    std::map<std::string, std::vector<FORMAT> > formats;
+   std::map<std::string, std::string> record;
    CompilerState() : lineNo(0U), charNo(0U), ended(false) { }
  };
 
@@ -282,6 +283,9 @@ void CallCommand(const std::string&, const std::string&, CompilerState&, Environ
 void TableCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void IntTimeCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void DirectCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void RecordCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void GotoXYCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void ReadBCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 
 // TODO : remove
 void TODO(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -292,19 +296,6 @@ void TODO(const std::string& line, const std::string& cmd, CompilerState& state,
    PutString(line.c_str());
    NewLine();
    NextLine(state, env);
-   return;
- }
-
-// TODO : remove
-void TODO3(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
- {
-   PutString("TODO ");
-   PutString(cmd.c_str());
-   PutString(" ");
-   PutString(line.c_str());
-   NewLine();
-   NextLine(state, env);
-   state.lineNo += 2;
    return;
  }
 
@@ -326,7 +317,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("STRING", StringCommand));
    result.emplace_back(std::make_pair("INTEGER", IntegerCommand));
    result.emplace_back(std::make_pair("TABLE", TableCommand));
-   result.emplace_back(std::make_pair("RECORD", TODO3));
+   result.emplace_back(std::make_pair("RECORD", RecordCommand));
 
    result.emplace_back(std::make_pair("SET", SetCommand));
    result.emplace_back(std::make_pair("DEFINE", DefineCommand));
@@ -341,7 +332,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("CLOSE", CloseCommand));
    
    // This is why we have a table:
-   result.emplace_back(std::make_pair("READB", TODO));
+   result.emplace_back(std::make_pair("READB", ReadBCommand));
    result.emplace_back(std::make_pair("READ", ReadCommand));
    // This is why we have a table:
    result.emplace_back(std::make_pair("WRITEN", WriteCommand));
@@ -377,7 +368,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
 
    result.emplace_back(std::make_pair("GTIME(INTEGER,", IntTimeCommand));
    result.emplace_back(std::make_pair("GTIME(STRING,", TODO));
-   result.emplace_back(std::make_pair("CURSOR", TODO));
+   result.emplace_back(std::make_pair("CURSOR", GotoXYCommand));
    result.emplace_back(std::make_pair("CURS", CursCommand));
    result.emplace_back(std::make_pair("CURP", TODO));
 
@@ -1841,4 +1832,96 @@ void DirectCommand(const std::string& line, const std::string&, CompilerState& s
     {
       throw Unimplemented(line);
     }
+ }
+
+void RecordCommand(const std::string& line, const std::string&, CompilerState& state, Environment& env)
+ {
+   if (((state.lineNo + 2U) < env.source.size()) &&
+      (line.substr(0U, 6U) == "RECORD") && (env.source[state.lineNo + 1U].substr(0U, 6U) == "STRING") && (env.source[state.lineNo + 2U] == "ENDREC"))
+    {
+      std::string recName = line.substr(6U, line.find('(') - 6U);
+      std::string dest = env.source[state.lineNo + 1U].substr(6U, env.source[state.lineNo + 1U].find('(') - 6U);
+      state.record[recName] = dest;
+      NextLine(state, env);
+      StringCommand(env.source[state.lineNo], "STRING", state, env);
+      NextLine(state, env);
+      Raw();
+    }
+   else
+    {
+      throw Unimplemented(line);
+    }
+ }
+
+void GotoXYCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ConsumeStr(state, cmd, true);
+   if (extractLabel(line, state.charNo, ',', false, label))
+    {
+      ConsumeStr(state, label, true);
+    }
+   else
+    {
+      PutString("Bad CURSOR");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   std::unique_ptr<NumberExpr> y = Compiler::NumberExpression(line, state.charNo, ',', false, env);
+   if (nullptr == y.get())
+    {
+      PutString("Bad CURSOR line");
+      NewLine();
+      CompilerFailure(state);
+    }
+   ConsumeStr(state, ",");
+
+   std::unique_ptr<NumberExpr> x = Compiler::NumberExpression(line, state.charNo, ')', false, env);
+   if (nullptr == x.get())
+    {
+      PutString("Bad CURSOR column");
+      NewLine();
+      CompilerFailure(state);
+    }
+   ConsumeStr(state, ")");
+
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<GotoXYImpl>(state.lineNo, lineStart, lineEnd, std::move(x), std::move(y)));
+
+   NextLine(state, env);
+ }
+
+void ReadBCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd, true);
+   std::string fileVar, label;
+   if (extractLabel(line, state.charNo, ',', false, fileVar) && (state.files.end() != state.files.find(fileVar)))
+    {
+      ConsumeStr(state, fileVar, true);
+    }
+   else
+    {
+      PutString("Bad READB");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   if (extractLabel(line, state.charNo, ')', false, label) && (state.record.end() != state.record.find(label)))
+    {
+      ConsumeStr(state, label, true);
+    }
+   else
+    {
+      PutString("Bad CURSOR");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<ReadBImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], env.symbols.strVars[state.record[label]]));
+
+   NextLine(state, env);
  }

@@ -320,3 +320,18 @@ void GtimeIntImpl::execute(Environment& env)
    int64_t time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() % 86400000;
    env.intVars[var].setValue(0U, time);
  }
+
+void GotoXYImpl::execute(Environment& env)
+ {
+   int64_t X = x->eval(env);
+   int64_t Y = y->eval(env);
+   GotoXY(X, Y);
+ }
+
+void ReadBImpl::execute(Environment& env)
+ {
+   char gotten = env.files[file]->getChar();
+   std::string temp;
+   temp += gotten;
+   env.strVars[var].setValue(0U, temp);
+ }

@@ -12,3 +12,4 @@ They are not mine. They are not subject to the license, as I can't relicense the
 * basiced.cepl
 * 1DLIFE.cepl (NOTE: has been modified to remove OOB reads)
 * sieve.cepl
+* rogue.cepl

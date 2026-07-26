@@ -414,4 +414,23 @@ public:
    virtual void execute(Environment&) override;
  };
 
+class GotoXYImpl final : public ICode
+ {
+public:
+   std::unique_ptr<NumberExpr> x;
+   std::unique_ptr<NumberExpr> y;
+   GotoXYImpl (size_t lineNo, size_t lineStart, size_t lineEnd, std::unique_ptr<NumberExpr>&& x, std::unique_ptr<NumberExpr>&& y) :
+      ICode(lineNo, lineStart, lineEnd), x(std::move(x)), y(std::move(y)) { }
+   virtual void execute(Environment&) override;
+ };
+
+class ReadBImpl final : public ICode
+ {
+public:
+   size_t file;
+   size_t var;
+   ReadBImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t file, size_t var) : ICode(lineNo, lineStart, lineEnd), file(file), var(var) { }
+   virtual void execute(Environment&) override;
+ };
+
 #endif /* NOTTHATCPL_EXCECUTION_H */
