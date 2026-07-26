@@ -55,9 +55,8 @@ public:
       PutString(val.c_str());
     }
 
-   virtual void putLine(const std::string& val) override
+   virtual void putLine(void) override
     {
-      PutString(val.c_str());
       NewLine();
     }
 
@@ -109,9 +108,9 @@ public:
       backing << val;
     }
 
-   virtual void putLine(const std::string& val) override
+   virtual void putLine(void) override
     {
-      backing << val << std::endl;
+      backing << std::endl;
     }
 
    virtual bool getStr(std::string& result) override
@@ -166,9 +165,8 @@ public:
       backing.back().append(val);
     }
 
-   virtual void putLine(const std::string& val) override
+   virtual void putLine(void) override
     {
-      putStr(val);
       backing.emplace_back("");
     }
 

@@ -281,6 +281,7 @@ void EndFileCommand(const std::string&, const std::string&, CompilerState&, Envi
 void CallCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void TableCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void IntTimeCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void DirectCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 
 // TODO : remove
 void TODO(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -318,7 +319,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("SPACE", IgnoredCommand));
    result.emplace_back(std::make_pair("COPY", UnimplementedCommand));
 
-   result.emplace_back(std::make_pair("DIRECT", TODO3));
+   result.emplace_back(std::make_pair("DIRECT", DirectCommand));
 
    result.emplace_back(std::make_pair("FILE", FileCommand));
 
@@ -648,14 +649,14 @@ void FormatCommand(const std::string& line, const std::string& cmd, CompilerStat
          switch (line[next])
           {
          case 'C':
-            format.push_back(STRING);
+            format.push_back(IO_STRING);
             break;
          case 'N':
          case 'D':
-            format.push_back(NUMBER);
+            format.push_back(IO_NUMBER);
             break;
          case 'X':
-            format.push_back(BLANK);
+            format.push_back(IO_BLANK);
             break;
           }
          next = line.find(',', next);
@@ -821,40 +822,62 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
     }
    if (line.substr(state.charNo, 5U) != "EJECT")
     {
-      std::unique_ptr<StringExpr> strVal = Compiler::StringExpression(line, state.charNo, ',', true, env);
-      if (nullptr != strVal.get())
+      size_t index = 0;
+      const std::vector<FORMAT>& formatVec = state.formats[format];
+      std::vector<std::unique_ptr<WritableExpr> > vals;
+      bool done = false;
+      do
        {
-         size_t lineEnd = state.charNo;
-         if ("WRITE" == cmd)
+         if (IO_STRING == formatVec[index])
           {
-            env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(strVal)));
-          }
-         else
-          {
-            env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(strVal)));
-          }
-       }
-      else
-       {
-         std::unique_ptr<NumberExpr> numVal = Compiler::NumberExpression(line, state.charNo, ',', true, env);
-         if (nullptr != numVal.get())
-          {
-            size_t lineEnd = state.charNo;
-            if ("WRITE" == cmd)
+            std::unique_ptr<StringExpr> strVal = Compiler::StringExpression(line, state.charNo, ',', true, env);
+            if (nullptr != strVal.get())
              {
-               env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(numVal)));
+               vals.emplace_back(std::move(strVal));
              }
             else
              {
-               env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], std::move(numVal)));
+               PutString("Bad WRITE STRING value");
+               NewLine();
+               CompilerFailure(state);
              }
+          }
+         else if (IO_NUMBER == formatVec[index])
+          {
+            std::unique_ptr<NumberExpr> numVal = Compiler::NumberExpression(line, state.charNo, ',', true, env);
+            if (nullptr != numVal.get())
+             {
+               vals.emplace_back(std::move(numVal));
+             }
+            else
+             {
+               PutString("Bad WRITE INTEGER value");
+               NewLine();
+               CompilerFailure(state);
+             }
+          }
+         if (',' != line[state.charNo])
+          {
+            done = true;
           }
          else
           {
-            PutString("Bad WRITE value");
-            NewLine();
-            CompilerFailure(state);
+            ++state.charNo;
           }
+         ++index;
+         if (index == formatVec.size())
+          {
+            index = 0U;
+          }
+       } while (!done);
+      size_t lineEnd = state.charNo;
+      if ("WRITE" == cmd)
+       {
+         env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], formatVec, std::move(vals)));
+       }
+      else
+       {
+         env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], formatVec, std::move(vals)));
        }
     }
    else
@@ -881,6 +904,8 @@ void ReadCommand(const std::string& line, const std::string& cmd, CompilerState&
       NewLine();
       CompilerFailure(state);
     }
+   size_t index = 0;
+   const std::vector<FORMAT>& formatVec = state.formats[format];
    std::vector<size_t> vars;
    bool done = false;
    do
@@ -889,12 +914,19 @@ void ReadCommand(const std::string& line, const std::string& cmd, CompilerState&
       if (extractLabel(line, state.charNo, ',', true, var))
        {
          ConsumeStr(state, var);
-         // TODO : use format to select variable type
-         if (env.symbols.strVars.end() != env.symbols.strVars.find(var))
+         while (formatVec[index] == IO_BLANK)
+          {
+            ++index;
+            if (index == formatVec.size())
+             {
+               index = 0U;
+             }
+          }
+         if ((IO_STRING == formatVec[index]) && (env.symbols.strVars.end() != env.symbols.strVars.find(var)))
           {
             vars.push_back(env.symbols.strVars[var]);
           }
-         else if (env.symbols.intVars.end() != env.symbols.intVars.find(var))
+         else if ((IO_NUMBER == formatVec[index]) && (env.symbols.intVars.end() != env.symbols.intVars.find(var)))
           {
             vars.push_back(env.symbols.intVars[var]);
           }
@@ -903,6 +935,11 @@ void ReadCommand(const std::string& line, const std::string& cmd, CompilerState&
             PutString("Bad variable in READ");
             NewLine();
             CompilerFailure(state);
+          }
+         ++index;
+         if (index == formatVec.size())
+          {
+            index = 0U;
           }
        }
       else
@@ -1789,4 +1826,19 @@ void IntTimeCommand(const std::string& line, const std::string& cmd, CompilerSta
       CompilerFailure(state);
     }
    NextLine(state, env);
+ }
+
+void DirectCommand(const std::string& line, const std::string&, CompilerState& state, Environment& env)
+ {
+   if (((state.lineNo + 2U) < env.source.size()) &&
+      (line == "DIRECT") && (env.source[state.lineNo + 1U] == "SVC7") && (env.source[state.lineNo + 2U] == "CPL"))
+    {
+      // I don't know what this does, but I will treat it as a NOP.
+      NextLine(state, env);
+      state.lineNo += 2;
+    }
+   else
+    {
+      throw Unimplemented(line);
+    }
  }

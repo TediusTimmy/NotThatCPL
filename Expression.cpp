@@ -82,6 +82,13 @@ public:
          env.numericError = true;
          return 0;
        }
+      // Well ... the debugger can effect this.
+      int64_t temp = LHS % RHS;
+      if (std::abs(temp) < 0x80000000LL)
+       {
+         env.intVars[env.symbols.intVars["@REM"]].setValue(0U, temp);
+       }
+      env.intVars[env.symbols.intVars["?@REM"]].setValue(0U, temp);
       return LHS / RHS;
     }
  };
@@ -403,7 +410,7 @@ std::unique_ptr<NumberExpr> primary(const std::string& line, size_t& charNo, con
           }
        }
     }
-   else // NUMBER
+   else // TOK_NUMBER
     {
       result = std::make_unique<NumberConst>(std::stoull(nextTolkien));
       getNextTolkien(line, charNo);

@@ -72,7 +72,7 @@ public:
    virtual void close(void) = 0;
    virtual void clearScreen(void) = 0;
    virtual void putStr(const std::string& val) = 0;
-   virtual void putLine(const std::string& val) = 0; // putStr(); NewLine();
+   virtual void putLine(void) = 0; // JUST the NewLine();
    virtual bool getStr(std::string&) = 0;
    virtual char getChar(void) = 0;
    virtual void rewind(void) = 0;

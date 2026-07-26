@@ -134,12 +134,31 @@ void OpenImpl::execute(Environment& env)
 
 void WritenImpl::execute(Environment& env)
  {
-   env.files[fileNo]->putStr(value->toString(env));
+   size_t index = 0;
+   for (const auto& val : value)
+    {
+      while (IO_BLANK == formats[index])
+       {
+         env.files[fileNo]->putStr(" ");
+         ++index;
+         if (index == formats.size())
+          {
+            index = 0U;
+          }
+       }
+      env.files[fileNo]->putStr(val->toString(env));
+      ++index;
+      if (index == formats.size())
+       {
+         index = 0U;
+       }
+    }
  }
 
 void WriteImpl::execute(Environment& env)
  {
-   env.files[fileNo]->putLine(value->toString(env));
+   WritenImpl::execute(env);
+   env.files[fileNo]->putLine();
  }
 
 void ClsImpl::execute(Environment& env)
@@ -149,17 +168,38 @@ void ClsImpl::execute(Environment& env)
 
 void ReadImpl::execute(Environment& env)
  {
+   size_t index = 0;
    for (size_t varNo : vars)
     {
+      while (IO_BLANK == formats[index])
+       {
+         ++index;
+         if (index == formats.size())
+          {
+            index = 0U;
+          }
+       }
       std::string next;
       if (env.files[fileNo]->getStr(next))
        {
-         // TODO numbers
-         env.strVars[varNo].setValue(0U, next);
+         if (IO_STRING == formats[index])
+          {
+            env.strVars[varNo].setValue(0U, next);
+          }
+         else // IO_NUMBER
+          {
+            env.intVars[varNo].setValue(0U, std::stoll(next));
+          }
        }
       else
        {
          env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 1);
+         return;
+       }
+      ++index;
+      if (index == formats.size())
+       {
+         index = 0U;
        }
     }
  }
