@@ -303,82 +303,99 @@ void TODO(const std::string& line, const std::string& cmd, CompilerState& state,
 std::vector<std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> > buildTable(void)
  {
    std::vector<std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> > result;
-   result.emplace_back(std::make_pair("TITLE", IgnoredCommand));
-   result.emplace_back(std::make_pair("PRINT", IgnoredCommand));
-   result.emplace_back(std::make_pair("PAGE", IgnoredCommand));
-   result.emplace_back(std::make_pair("EJECT", IgnoredCommand));
-   result.emplace_back(std::make_pair("SPACE", IgnoredCommand));
-   result.emplace_back(std::make_pair("COPY", UnimplementedCommand));
-
-   result.emplace_back(std::make_pair("DIRECT", DirectCommand));
-
-   result.emplace_back(std::make_pair("FILE", FileCommand));
-
-   result.emplace_back(std::make_pair("STRING", StringCommand));
-   result.emplace_back(std::make_pair("INTEGER", IntegerCommand));
-   result.emplace_back(std::make_pair("TABLE", TableCommand));
-   result.emplace_back(std::make_pair("RECORD", RecordCommand));
-
-   result.emplace_back(std::make_pair("SET", SetCommand));
-   result.emplace_back(std::make_pair("DEFINE", DefineCommand));
-
-   result.emplace_back(std::make_pair("EXTERNAL", IgnoredCommand));
-   result.emplace_back(std::make_pair("FORMAT", FormatCommand));
-   // This is why we have a table:
-   result.emplace_back(std::make_pair("ENTRYPOINT", IgnoredCommand));
-   result.emplace_back(std::make_pair("ENTRY", EntryCommand));
-
-   result.emplace_back(std::make_pair("OPEN", OpenCommand));
-   result.emplace_back(std::make_pair("CLOSE", CloseCommand));
-   
-   // This is why we have a table:
-   result.emplace_back(std::make_pair("READB", ReadBCommand));
-   result.emplace_back(std::make_pair("READ", ReadCommand));
-   // This is why we have a table:
-   result.emplace_back(std::make_pair("WRITEN", WriteCommand));
-   result.emplace_back(std::make_pair("WRITE", WriteCommand));
-   result.emplace_back(std::make_pair("WRITN", WriteCommand));
-   result.emplace_back(std::make_pair("REWIND", TODO));
-
-   // This is why we have a table:
-   result.emplace_back(std::make_pair("IFSTRING", IfsCommand));
-   result.emplace_back(std::make_pair("IFS", IfsCommand));
-   result.emplace_back(std::make_pair("IF", IfCommand));
-   result.emplace_back(std::make_pair("ELSE", UnimplementedCommand));
-
-   result.emplace_back(std::make_pair("STOP", StopCommand));
-   // This is why we have a table:
-   result.emplace_back(std::make_pair("ENDLOOP", UnimplementedCommand));
-   result.emplace_back(std::make_pair("ENDDO", UnimplementedCommand));
-   result.emplace_back(std::make_pair("ENDFILE", EndFileCommand));
-   result.emplace_back(std::make_pair("END", EndCommand));
-
-   result.emplace_back(std::make_pair("SUBROUTINE", TODO));
+   // Re-ordering the list based on the table on page i, but taking into account needed ordering
+   // ABS is a function.
+   result.emplace_back(std::make_pair("ADRLST", UnimplementedCommand)); // No assembly stuff
+   result.emplace_back(std::make_pair("BUFFER", UnimplementedCommand));
    result.emplace_back(std::make_pair("CALL", CallCommand));
-   result.emplace_back(std::make_pair("RETRIEVE", TODO));
-   result.emplace_back(std::make_pair("GOTO(", TODO)); // Switch statement
-   result.emplace_back(std::make_pair("GOTO", GotoCommand));
-
-   // This is why we have a table:
-   result.emplace_back(std::make_pair("LOOPWHILE", LoopWhileCommand));
-   result.emplace_back(std::make_pair("LOOP", TODO)); // This is a for loop
-   // This is why we have a table:
-   result.emplace_back(std::make_pair("RETURNTO", TODO)); // I like to call this GO FUCK YOURSELF
-   result.emplace_back(std::make_pair("RETURN", TODO));
-
-   result.emplace_back(std::make_pair("GTIME(INTEGER,", IntTimeCommand));
-   result.emplace_back(std::make_pair("GTIME(STRING,", TODO));
-   result.emplace_back(std::make_pair("CURSOR", GotoXYCommand));
-   result.emplace_back(std::make_pair("CURS", CursCommand));
+   result.emplace_back(std::make_pair("CLOSE", CloseCommand));
+   result.emplace_back(std::make_pair("COPY", UnimplementedCommand));
+   result.emplace_back(std::make_pair("CPL", UnimplementedCommand));
+   result.emplace_back(std::make_pair("CURB", UnimplementedCommand)); // Clear line ???
    result.emplace_back(std::make_pair("CURP", TODO));
-
-   // You would think that INCR would be sufficient, but we want to consume the whole word:
-   result.emplace_back(std::make_pair("INCREMENT", IncrCommand));
-   result.emplace_back(std::make_pair("INCR", IncrCommand));
+   result.emplace_back(std::make_pair("CURSOR", GotoXYCommand)); // This is why we have a table
+   result.emplace_back(std::make_pair("CURS", CursCommand));
+   result.emplace_back(std::make_pair("DECODE", UnimplementedCommand)); // String manipulation ???
    // You would think that DECR would be sufficient, but we want to consume the whole word:
    result.emplace_back(std::make_pair("DECREMENT", IncrCommand));
    result.emplace_back(std::make_pair("DECR", IncrCommand));
+   result.emplace_back(std::make_pair("DEFINE", DefineCommand));
+   result.emplace_back(std::make_pair("DIRECT", DirectCommand));
+   result.emplace_back(std::make_pair("DUMP", UnimplementedCommand)); // Debugging
+   result.emplace_back(std::make_pair("EJECT", IgnoredCommand));
+   result.emplace_back(std::make_pair("ENCODE", UnimplementedCommand)); // String manipulation ???
+   result.emplace_back(std::make_pair("ENDDO", UnimplementedCommand)); // This is why we have a table
+   result.emplace_back(std::make_pair("ENDFILE", EndFileCommand));
+   result.emplace_back(std::make_pair("ENDLOOP", UnimplementedCommand));
+   result.emplace_back(std::make_pair("ENDREC", UnimplementedCommand));
+   result.emplace_back(std::make_pair("END", EndCommand));
+   result.emplace_back(std::make_pair("ENTRYPOINT", IgnoredCommand)); // This is why we have a table
+   result.emplace_back(std::make_pair("ENTRY", EntryCommand));
+   result.emplace_back(std::make_pair("EQUATE", UnimplementedCommand)); // Example is of pointer manipulation
+   result.emplace_back(std::make_pair("EXTERNAL", IgnoredCommand));
+   result.emplace_back(std::make_pair("FILE", FileCommand));
+   result.emplace_back(std::make_pair("FORMAT", FormatCommand));
+   result.emplace_back(std::make_pair("FREE", UnimplementedCommand)); // File/record locking
+   // FRER is a subroutine
+   // GETR is a subroutine
+   result.emplace_back(std::make_pair("GOTO(", TODO)); // Switch statement
+   result.emplace_back(std::make_pair("GOTO", GotoCommand));
+   result.emplace_back(std::make_pair("GTIME(INTEGER,", IntTimeCommand)); // I'm being shifty here...
+   result.emplace_back(std::make_pair("GTIME(STRING,", TODO)); // but only as shifty as the documentation!
+   // HLDR is a subroutine
+   result.emplace_back(std::make_pair("HOLD", UnimplementedCommand)); // File/record locking
+   result.emplace_back(std::make_pair("IFSTRING", IfsCommand)); // This is why we have a table
+   result.emplace_back(std::make_pair("IFS", IfsCommand));
+   result.emplace_back(std::make_pair("IF", IfCommand));
+   // You would think that INCR would be sufficient, but we want to consume the whole word:
+   result.emplace_back(std::make_pair("INCREMENT", IncrCommand));
+   result.emplace_back(std::make_pair("INCR", IncrCommand));
+   result.emplace_back(std::make_pair("INTEGER", IntegerCommand));
+   result.emplace_back(std::make_pair("LDATE", UnimplementedCommand)); // Time formatting
+   // LEN is a function.
+   result.emplace_back(std::make_pair("LOAD", UnimplementedCommand)); // Load another program
+   result.emplace_back(std::make_pair("LOOPWHILE", LoopWhileCommand)); // This is why we have a table
+   result.emplace_back(std::make_pair("LOOP", TODO)); // This is a FOR loop
+   // MAX is a function
+   // MIN is a function
+   // MOD is a function
+   result.emplace_back(std::make_pair("NOTE", UnimplementedCommand)); // File location "tellg" / records
+   result.emplace_back(std::make_pair("OPEN", OpenCommand));
+   result.emplace_back(std::make_pair("ORIGIN", UnimplementedCommand)); // No assembly stuff
+   result.emplace_back(std::make_pair("PAGEEJECT", IgnoredCommand));
+   result.emplace_back(std::make_pair("POINT", UnimplementedCommand)); // File location "tellg" / records
+   result.emplace_back(std::make_pair("PRINT", IgnoredCommand)); // All ignored
+   // PUTR is a subroutine
+   result.emplace_back(std::make_pair("READB", ReadBCommand)); // This is why we have a table
+   result.emplace_back(std::make_pair("READ", ReadCommand));
+   result.emplace_back(std::make_pair("RECORD", RecordCommand));
+   result.emplace_back(std::make_pair("RESET", UnimplementedCommand)); // No tape files
+   result.emplace_back(std::make_pair("RETRIEVE", TODO));
+   result.emplace_back(std::make_pair("RETURNTO", TODO)); // This is why we have a table
+   result.emplace_back(std::make_pair("RETURN", TODO));
+   result.emplace_back(std::make_pair("REWIND", TODO));
+   result.emplace_back(std::make_pair("REWRITE", UnimplementedCommand)); // File updating / records
+   // ROUND is a function
+   result.emplace_back(std::make_pair("SDATE", UnimplementedCommand)); // Time formatting
+   result.emplace_back(std::make_pair("SETFORM", UnimplementedCommand)); // Printer control
+   result.emplace_back(std::make_pair("SET", SetCommand));
+   // SGN is a function
+   result.emplace_back(std::make_pair("SKIP", UnimplementedCommand)); // No tape files
+   result.emplace_back(std::make_pair("SPACE", IgnoredCommand));
+   result.emplace_back(std::make_pair("STOP", StopCommand));
+   result.emplace_back(std::make_pair("STRING", StringCommand));
+   result.emplace_back(std::make_pair("SUBROUTINE", TODO));
+   result.emplace_back(std::make_pair("SYSTEM", UnimplementedCommand)); // There can be only one
+   result.emplace_back(std::make_pair("TABLE", TableCommand));
+   result.emplace_back(std::make_pair("TBLGET", TODO));
+   result.emplace_back(std::make_pair("TBLPUT", TODO));
+   result.emplace_back(std::make_pair("TITLE", IgnoredCommand));
+   result.emplace_back(std::make_pair("WRITEB", UnimplementedCommand)); // Unformatted IO is only for the screen
+   result.emplace_back(std::make_pair("WRITEN", WriteCommand)); // This is why we have a table
+   result.emplace_back(std::make_pair("WRITE", WriteCommand));
+   result.emplace_back(std::make_pair("WRITN", WriteCommand));
 
+   result.emplace_back(std::make_pair("ELSE", UnimplementedCommand));
    result.emplace_back(std::make_pair("DO", UnimplementedCommand)); // This should never actually be used when returned.
    return result;
  }
@@ -1260,6 +1277,7 @@ void IfCommand(const std::string& line, const std::string& cmd, CompilerState& s
    size_t lineStart = state.charNo;
    ConsumeStr(state, cmd, true); // Don't check for '('
 
+   // TODO implicit .NE.0
    std::unique_ptr<NumberExpr> lhs = Compiler::NumberExpression(line, state.charNo, '.', false, env);
    if (nullptr == lhs.get())
     {
