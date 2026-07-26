@@ -433,4 +433,39 @@ public:
    virtual void execute(Environment&) override;
  };
 
+class CallImpl final : public ICode
+ {
+public:
+   std::string label;
+   size_t target;
+   CallImpl (size_t lineNo, size_t lineStart, size_t lineEnd, const std::string& label) : ICode(lineNo, lineStart, lineEnd), label(label), target(0U) { }
+   virtual void execute(Environment&) override;
+   virtual void fixJumps(const std::map<std::string, size_t>&, const std::map<std::string, size_t>&) override;
+ };
+
+class ReturnImpl final : public ICode
+ {
+public:
+   ReturnImpl (size_t lineNo, size_t lineStart, size_t lineEnd) : ICode(lineNo, lineStart, lineEnd) { }
+   virtual void execute(Environment&) override;
+ };
+
+class ReturnToImpl final : public ICode
+ {
+public:
+   std::string label;
+   size_t target;
+   ReturnToImpl (size_t lineNo, size_t lineStart, size_t lineEnd, const std::string& label) : ICode(lineNo, lineStart, lineEnd), label(label), target(0U) { }
+   virtual void execute(Environment&) override;
+   virtual void fixJumps(const std::map<std::string, size_t>&, const std::map<std::string, size_t>&) override;
+ };
+
+class RewindImpl final : public ICode
+ {
+public:
+   std::vector<size_t> fileNos;
+   RewindImpl (size_t lineNo, size_t lineStart, size_t lineEnd, const std::vector<size_t>& fileNos) : ICode(lineNo, lineStart, lineEnd), fileNos(fileNos) { }
+   virtual void execute(Environment&) override;
+ };
+
 #endif /* NOTTHATCPL_EXCECUTION_H */

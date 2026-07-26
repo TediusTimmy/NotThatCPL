@@ -286,6 +286,10 @@ void DirectCommand(const std::string&, const std::string&, CompilerState&, Envir
 void RecordCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void GotoXYCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void ReadBCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void SubroutineCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void ReturnCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void ReturnToCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void RewindCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 
 // TODO : remove
 void TODO(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -371,9 +375,9 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("RECORD", RecordCommand));
    result.emplace_back(std::make_pair("RESET", UnimplementedCommand)); // No tape files
    result.emplace_back(std::make_pair("RETRIEVE", TODO));
-   result.emplace_back(std::make_pair("RETURNTO", TODO)); // This is why we have a table
-   result.emplace_back(std::make_pair("RETURN", TODO));
-   result.emplace_back(std::make_pair("REWIND", TODO));
+   result.emplace_back(std::make_pair("RETURNTO", ReturnToCommand)); // This is why we have a table
+   result.emplace_back(std::make_pair("RETURN", ReturnCommand));
+   result.emplace_back(std::make_pair("REWIND", RewindCommand));
    result.emplace_back(std::make_pair("REWRITE", UnimplementedCommand)); // File updating / records
    // ROUND is a function
    result.emplace_back(std::make_pair("SDATE", UnimplementedCommand)); // Time formatting
@@ -384,7 +388,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("SPACE", IgnoredCommand));
    result.emplace_back(std::make_pair("STOP", StopCommand));
    result.emplace_back(std::make_pair("STRING", StringCommand));
-   result.emplace_back(std::make_pair("SUBROUTINE", TODO));
+   result.emplace_back(std::make_pair("SUBROUTINE", SubroutineCommand));
    result.emplace_back(std::make_pair("SYSTEM", UnimplementedCommand)); // There can be only one
    result.emplace_back(std::make_pair("TABLE", TableCommand));
    result.emplace_back(std::make_pair("TBLGET", TODO));
@@ -869,6 +873,14 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
       bool done = false;
       do
        {
+         while (formatVec[index] == IO_BLANK)
+          {
+            ++index;
+            if (index == formatVec.size())
+             {
+               index = 0U;
+             }
+          }
          if (IO_STRING == formatVec[index])
           {
             std::unique_ptr<StringExpr> strVal = Compiler::StringExpression(line, state.charNo, ',', true, env);
@@ -1815,9 +1827,14 @@ void CallCommand(const std::string& line, const std::string& cmd, CompilerState&
        }
       else
        {
-         //size_t lineEnd = state.charNo;
-         PutString("TODO : Generic call");
-         NewLine();
+         ConsumeStr(state, function);
+         size_t lineEnd = state.charNo;
+         env.icode.emplace_back(std::make_unique<CallImpl>(state.lineNo, lineStart, lineEnd, function));
+         // TODO : arguments
+         if ('(' == line[state.charNo])
+          {
+            throw Unimplemented("CALL arguments");
+          }
        }
     }
    else
@@ -1992,5 +2009,89 @@ void ReadBCommand(const std::string& line, const std::string& cmd, CompilerState
    size_t lineEnd = state.charNo;
    env.icode.emplace_back(std::make_unique<ReadBImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], env.symbols.strVars[state.record[label]]));
 
+   NextLine(state, env);
+ }
+
+void SubroutineCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   ConsumeStr(state, cmd);
+
+   std::string label;
+   if (extractLabel(line, state.charNo, '(', true, label))
+    {
+      ConsumeStr(state, label);
+      state.subs[label] = env.icode.size();
+    }
+   else
+    {
+      PutString("Bad SUBROUTINE name");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   NextLine(state, env);
+ }
+
+void ReturnToCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd);
+
+   std::string label;
+   if (extractLineLabel(line, state.charNo, ',', true, label))
+    {
+      ConsumeStr(state, label);
+    }
+   else
+    {
+      PutString("Bad label");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<ReturnToImpl>(state.lineNo, lineStart, lineEnd, label));
+   NextLine(state, env);
+ }
+
+void ReturnCommand(const std::string&, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd);
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<ReturnImpl>(state.lineNo, lineStart, lineEnd));
+   NextLine(state, env);
+ }
+
+void RewindCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd);
+
+   std::vector<size_t> fileNos;
+   bool done = false;
+   do
+    {
+      std::string fileName;
+      if (extractLabel(line, state.charNo, ',', true, fileName) &&
+            (state.files.end() != state.files.find(fileName)))
+       {
+         ConsumeStr(state, fileName);
+         fileNos.push_back(state.files[fileName]);
+       }
+      else
+       {
+         PutString("Bad file variable in REWIND");
+         NewLine();
+         CompilerFailure(state);
+       }
+      done = ',' != line[state.charNo];
+      if (!done)
+       {
+         ++state.charNo;
+       }
+    } while (!done);
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<RewindImpl>(state.lineNo, lineStart, lineEnd, fileNos));
    NextLine(state, env);
  }

@@ -335,3 +335,75 @@ void ReadBImpl::execute(Environment& env)
    temp += gotten;
    env.strVars[var].setValue(0U, temp);
  }
+
+void CallImpl::execute(Environment& env)
+ {
+   env.stack.push_back(StackFrame(label, env.pc)); // ACCOUNTS FOR auto increment
+   env.pc = target - 1U; // Account for auto increment
+ }
+
+void CallImpl::fixJumps(const std::map<std::string, size_t>&, const std::map<std::string, size_t>& subs)
+ {
+   if (subs.end() != subs.find(label))
+    {
+      target = subs.find(label)->second; // Do NOT account for auto increment
+    }
+   else
+    {
+      PutString("CALL to undefined SUBROUTINE ");
+      PutString(label.c_str());
+      NewLine();
+      throw StopCode(3);
+    }
+ }
+
+void ReturnImpl::execute(Environment& env)
+ {
+   if (env.stack.size() > 0)
+    {
+      env.pc = env.stack.back().ret; // Do NOT account for auto increment
+      env.stack.pop_back();
+    }
+   else
+    {
+      PutString("RETURN without CALL");
+      NewLine();
+      throw StopCode(3);
+    }
+ }
+
+/*
+   If you are coming from a language that only has functions, and know how the language works
+   in assembly on modern architectures, then this is real dicey. This sort of branch is unacceptable
+   in C-family languages, or Python. Any language that lacks true subroutines/procedures.
+   It works in Pascal (but only for procedures), or BASIC (but only GOSUB / SUB).
+   I don't know what the use case was for this. Coroutines?
+*/
+void ReturnToImpl::execute(Environment& env)
+ {
+   env.stack.pop_back();
+   env.pc = target - 1U; // Account for auto increment
+ }
+
+void ReturnToImpl::fixJumps(const std::map<std::string, size_t>& labels, const std::map<std::string, size_t>&)
+ {
+   if (labels.end() != labels.find(label))
+    {
+      target = labels.find(label)->second; // Do NOT account for auto increment
+    }
+   else
+    {
+      PutString("Branch to undefined label ");
+      PutString(label.c_str());
+      NewLine();
+      throw StopCode(3);
+    }
+ }
+
+void RewindImpl::execute(Environment& env)
+ {
+   for (size_t fileNo : fileNos)
+    {
+      env.files[fileNo]->rewind();
+    }
+ }

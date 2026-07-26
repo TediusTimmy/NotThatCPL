@@ -86,6 +86,14 @@ public:
    std::map<std::string, size_t> strVars;
  };
 
+class StackFrame final
+ {
+public:
+   std::string subName;
+   size_t ret;
+   StackFrame(const std::string& subName, size_t ret) : subName(subName), ret(ret) { }
+ };
+
 class Environment final
  {
 public:
@@ -96,6 +104,7 @@ public:
    std::vector<StrVar> strVars;
    std::vector<std::unique_ptr<FileDecl> > files;
    std::vector<std::unique_ptr<ICode> > icode;
+   std::vector<StackFrame> stack;
    size_t entry;
    size_t pc;
    bool numericError;

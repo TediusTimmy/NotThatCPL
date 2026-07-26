@@ -219,6 +219,29 @@ int main (int argc, char ** argv)
                   NewLine();
                 }
              }
+            else if ("STACK" == command)
+             {
+               if (0 == env.stack.size())
+                {
+                  PutString("In Main Routine.");
+                  NewLine();
+                }
+               else
+                {
+                  size_t index = env.stack.size();
+                  while (index > 0)
+                   {
+                     PutString("#");
+                     PutString(std::to_string(index).c_str());
+                     PutString(" ");
+                     PutString(env.stack[index - 1U].subName.c_str());
+                     NewLine();
+                     --index;
+                   }
+                  PutString("#0 Main Routine");
+                  NewLine();
+                }
+             }
           } while (false == understood);
 
          try
