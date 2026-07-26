@@ -45,8 +45,8 @@ WRITE(CRT,CELL)''                  ; This should print a new line
 ; Do the calculation
 LIN = 0
 LOOP WHILE (LIN.LE.25)             ; Main loop to do 25 lines of life
-     CNT = 0                       ; Counter for moving through array
-     LOOP WHILE (CNT.LE.64)        ; Loop for calculating next life
+     CNT = 3                       ; Counter for moving through array
+     LOOP WHILE (CNT.LE.62)        ; Loop for calculating next life
           TOT = 0                  ; Zero out total number of neighbors
           TMP = ARRA(CNT-2)        ; Count up total number of neighbors
           IF (TMP.EQ.1)INCR TOT

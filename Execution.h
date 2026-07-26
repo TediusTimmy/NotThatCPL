@@ -106,6 +106,15 @@ public:
    virtual int64_t eval(Environment&) const override;
  };
 
+class NumberSetter
+ {
+protected:
+   size_t var;
+public:
+   explicit NumberSetter(size_t var) : var(var) { }
+   virtual void set(Environment&, int64_t) const = 0;
+ };
+
 /*
    Real Expression
 
@@ -116,6 +125,15 @@ public:
    "You'll never be alone"
 */
 std::unique_ptr<NumberExpr> RealExpression(const std::string& line, size_t& charNo, const Environment&);
+
+/*
+   And if, I find, the real world of emotion has surrounded me
+   And I can't go on
+   You are there, the moment that I close my eyes, to comfort me
+   We are connected for all, of time
+   I'll never be
+*/
+std::unique_ptr<NumberSetter> RealNumberAssignment(const std::string& line, size_t& charNo, const Environment&);
 
 template <typename T>
 class Predicate
@@ -366,10 +384,10 @@ public:
 class NumAssignImpl final : public ICode
  {
 public:
-   size_t var;
+   std::unique_ptr<NumberSetter> var;
    std::unique_ptr<NumberExpr> val;
-   NumAssignImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t var, std::unique_ptr<NumberExpr>&& val) :
-      ICode(lineNo, lineStart, lineEnd), var(var), val(std::move(val)) { }
+   NumAssignImpl (size_t lineNo, size_t lineStart, size_t lineEnd, std::unique_ptr<NumberSetter>&& var, std::unique_ptr<NumberExpr>&& val) :
+      ICode(lineNo, lineStart, lineEnd), var(std::move(var)), val(std::move(val)) { }
    virtual void execute(Environment&) override;
  };
 
@@ -385,6 +403,14 @@ class StatCallImpl final : public ICode
  {
 public:
    StatCallImpl (size_t lineNo, size_t lineStart, size_t lineEnd) : ICode(lineNo, lineStart, lineEnd) { }
+   virtual void execute(Environment&) override;
+ };
+
+class GtimeIntImpl final : public ICode
+ {
+public:
+   size_t var;
+   GtimeIntImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t var) : ICode(lineNo, lineStart, lineEnd), var(var) { }
    virtual void execute(Environment&) override;
  };
 

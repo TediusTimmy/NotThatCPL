@@ -44,25 +44,25 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class IntVar final
  {
 private:
-   int64_t value;
+   std::vector<int64_t> value;
 public:
    std::string name;
    int64_t size;
-   int64_t getValue() const { return value; }
-   void setValue(int64_t);
-   IntVar(std::string name, int64_t size, int64_t value) : value(value), name(name), size(size) { }
+   int64_t getValue(size_t index) const;
+   void setValue(size_t, int64_t);
+   IntVar(std::string name, size_t count, int64_t size, int64_t value) : value(count + 1U), name(name), size(size) { this->value[0] = value; }
  };
 
 class StrVar final
  {
 private:
-   std::string value;
+   std::vector<std::string> value;
 public:
    std::string name;
    size_t size;
-   const std::string& getValue() const { return value; }
-   void setValue(const std::string&);
-   StrVar(std::string name, size_t size, std::string value) : value(value), name(name), size(size) { }
+   const std::string& getValue(size_t index) const { return value[index]; }
+   void setValue(size_t, const std::string&);
+   StrVar(std::string name, size_t count, size_t size, std::string value) : value(count + 1U), name(name), size(size) { this->value[0] = value; }
  };
 
 class FileDecl

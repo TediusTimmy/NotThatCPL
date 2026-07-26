@@ -117,7 +117,7 @@ class Len final : public NumberExpr
    size_t strVar;
 public:
    explicit Len(size_t strVar) : strVar(strVar) { }
-   virtual int64_t eval(Environment& env) const override { return static_cast<int64_t>(env.strVars[strVar].getValue().length()); }
+   virtual int64_t eval(Environment& env) const override { return static_cast<int64_t>(env.strVars[strVar].getValue(0U).length()); }
  };
 
 class Abs final : public NumberExpr
@@ -183,6 +183,30 @@ class Max final : public NumberExpr
 public:
    Max(std::unique_ptr<NumberExpr>&& lhs, std::unique_ptr<NumberExpr>&& rhs) : lhs(std::move(lhs)), rhs(std::move(rhs)) { }
    virtual int64_t eval(Environment& env) const override { return std::max(lhs->eval(env), rhs->eval(env)); }
+ };
+
+class NumberIndexVar final : public NumberExpr
+ {
+   size_t var;
+   std::unique_ptr<NumberExpr> index;
+public:
+   NumberIndexVar(size_t var, std::unique_ptr<NumberExpr>&& index) : var(var), index(std::move(index)) { }
+   virtual int64_t eval(Environment& env) const override { return env.intVars[var].getValue(static_cast<size_t>(index->eval(env))); }
+ };
+
+class SingleNumberSetter final : public NumberSetter
+ {
+public:
+   explicit SingleNumberSetter(size_t var) : NumberSetter(var) { }
+   virtual void set(Environment& env, int64_t val) const override { env.intVars[var].setValue(0U, val); }
+ };
+
+class IndexedNumberSetter final : public NumberSetter
+ {
+   std::unique_ptr<NumberExpr> index;
+public:
+   IndexedNumberSetter(size_t var, std::unique_ptr<NumberExpr>&& index) : NumberSetter(var), index(std::move(index)) { }
+   virtual void set(Environment& env, int64_t val) const override { env.intVars[var].setValue(static_cast<size_t>(index->eval(env)), val); }
  };
 
 enum TokenType
@@ -367,9 +391,16 @@ std::unique_ptr<NumberExpr> primary(const std::string& line, size_t& charNo, con
          getNextTolkien(line, charNo);
          if ("(" == nextTolkien)
           {
-            throw Unimplemented("TABLE");
+            getNextTolkien(line, charNo);
+            std::unique_ptr<NumberExpr> index = expression(line, charNo, env);
+            CHECK(index)
+            ASSERT_TOKEN(")")
+            result = std::make_unique<NumberIndexVar>(env.symbols.intVars.find(tolkien)->second, std::move(index));
           }
-         result = std::make_unique<NumberVar>(env.symbols.intVars.find(tolkien)->second);
+         else
+          {
+            result = std::make_unique<NumberVar>(env.symbols.intVars.find(tolkien)->second);
+          }
        }
     }
    else // NUMBER
@@ -410,4 +441,32 @@ void getNextTolkien(const std::string& line, size_t& charNo)
        }
       nextLewis = TOK_SYMBOL;
     }
+ }
+
+std::unique_ptr<NumberSetter> RealNumberAssignment(const std::string& line, size_t& charNo, const Environment& env)
+ {
+   std::unique_ptr<NumberSetter> result;
+   getNextTolkien(line, charNo);
+   if (TOK_IDENTIFIER == nextLewis)
+    {
+      if (env.symbols.intVars.end() != env.symbols.intVars.find(nextTolkien))
+       {
+         std::string tolkien = nextTolkien;
+         getNextTolkien(line, charNo);
+         if ("(" == nextTolkien)
+          {
+            getNextTolkien(line, charNo);
+            std::unique_ptr<NumberExpr> index = expression(line, charNo, env);
+            CHECK(index)
+            ASSERT_TOKEN(")")
+            result = std::make_unique<IndexedNumberSetter>(env.symbols.intVars.find(tolkien)->second, std::move(index));
+          }
+         else
+          {
+            result = std::make_unique<SingleNumberSetter>(env.symbols.intVars.find(tolkien)->second);
+          }
+       }
+    }
+   charNo -= nextTolkien.length();
+   return result;
  }

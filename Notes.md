@@ -56,3 +56,8 @@ Only take two arguments.
 ## Assignment
 
 Only handles one left-hand-side value.
+
+
+## TABLE
+
+Only integer tables, for now.

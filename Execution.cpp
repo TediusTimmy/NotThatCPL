@@ -35,36 +35,75 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "Exceptions.h"
 
 #include <algorithm>
+#include <chrono>
 
-void StrVar::setValue(const std::string& val)
+void StrVar::setValue(size_t index, const std::string& val)
  {
-   value = val;
-   if (value.length() > size)
+   if (index < value.size())
+    {
+      value[index] = val;
+      if (val.length() > size)
+       {
+         PutString("Warning assignment to variable ");
+         PutString(name.c_str());
+         PutString(" that exceeds allocated size.");
+         NewLine();
+       }
+    }
+   else
     {
       PutString("Warning assignment to variable ");
       PutString(name.c_str());
-      PutString(" that exceeds allocated size.");
+      PutString(" out of bounds.");
+      NewLine();
     }
  }
 
-void IntVar::setValue(int64_t val)
+int64_t IntVar::getValue(size_t index) const
  {
-   value = val;
-   if ((value > size) || (value < -(size + 1)))
+   if (index < value.size())
     {
-      PutString("Overflow in assignment to variable ");
+      return value[index];
+    }
+   else
+    {
+      PutString("Warning read from variable ");
       PutString(name.c_str());
+      PutString(" out of bounds.");
+      NewLine();
+      return 0;
+    }
+ }
+
+void IntVar::setValue(size_t index, int64_t val)
+ {
+   if (index < value.size())
+    {
+      value[index] = val;
+      if ((val > size) || (val < -(size + 1)))
+       {
+         PutString("Overflow in assignment to variable ");
+         PutString(name.c_str());
+         NewLine();
+       }
+    }
+   else
+    {
+      PutString("Warning assignment to variable ");
+      PutString(name.c_str());
+      PutString(" out of bounds.");
+      NewLine();
     }
  }
 
 std::string StringVar::eval(const Environment& env) const
  {
-   return env.strVars[var].getValue();
+   return env.strVars[var].getValue(0U);
  }
 
 int64_t NumberVar::eval(Environment& env) const
  {
-   return env.intVars[var].getValue();
+   return env.intVars[var].getValue(0U);
  }
 
 std::string NormalizeStr(const std::string& source)
@@ -116,11 +155,11 @@ void ReadImpl::execute(Environment& env)
       if (env.files[fileNo]->getStr(next))
        {
          // TODO numbers
-         env.strVars[varNo].setValue(next);
+         env.strVars[varNo].setValue(0U, next);
        }
       else
        {
-         env.intVars[env.symbols.intVars["STATUS"]].setValue(1);
+         env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 1);
        }
     }
  }
@@ -183,7 +222,7 @@ void ElseImpl::execute(Environment& env)
 
 void IncrImpl::execute(Environment& env)
  {
-   env.intVars[var].setValue(env.intVars[var].getValue() + val);
+   env.intVars[var].setValue(0U, env.intVars[var].getValue(0U) + val);
  }
 
 void CursImpl::execute(Environment& env)
@@ -196,17 +235,21 @@ void CursImpl::execute(Environment& env)
 
 void StrAssignImpl::execute(Environment& env)
  {
-   env.strVars[var].setValue(val->eval(env));
+   env.strVars[var].setValue(0U, val->eval(env));
  }
 
 void NumAssignImpl::execute(Environment& env)
  {
    // This dance keeps the debugger from setting STATUS.
    env.numericError = false;
-   env.intVars[var].setValue(val->eval(env));
+   int64_t newVal = val->eval(env);
    if (true == env.numericError)
     {
-      env.intVars[env.symbols.intVars["STATUS"]].setValue(2);
+      env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 2);
+    }
+   else
+    {
+      var->set(env, newVal);
     }
  }
 
@@ -220,7 +263,7 @@ void EndFileImpl::execute(Environment& env)
 
 void StatCallImpl::execute(Environment& env)
  {
-   int64_t stat = env.intVars[env.symbols.intVars["STATUS"]].getValue();
+   int64_t stat = env.intVars[env.symbols.intVars["STATUS"]].getValue(0U);
    if (stat != 0)
     {
       PutString("*****   I/O ERROR   ADDRESS=");
@@ -230,4 +273,10 @@ void StatCallImpl::execute(Environment& env)
       PutString("   *****");
       throw StopCode(100);
     }
+ }
+
+void GtimeIntImpl::execute(Environment& env)
+ {
+   int64_t time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() % 86400000;
+   env.intVars[var].setValue(0U, time);
  }

@@ -279,6 +279,8 @@ void AssignmentCommand(const std::string&, const std::string&, CompilerState&, E
 void DefineCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void EndFileCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void CallCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void TableCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void IntTimeCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 
 // TODO : remove
 void TODO(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -322,7 +324,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
 
    result.emplace_back(std::make_pair("STRING", StringCommand));
    result.emplace_back(std::make_pair("INTEGER", IntegerCommand));
-   result.emplace_back(std::make_pair("TABLE", TODO));
+   result.emplace_back(std::make_pair("TABLE", TableCommand));
    result.emplace_back(std::make_pair("RECORD", TODO3));
 
    result.emplace_back(std::make_pair("SET", SetCommand));
@@ -372,7 +374,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("RETURNTO", TODO)); // I like to call this GO FUCK YOURSELF
    result.emplace_back(std::make_pair("RETURN", TODO));
 
-   result.emplace_back(std::make_pair("GTIME(INTEGER,", TODO));
+   result.emplace_back(std::make_pair("GTIME(INTEGER,", IntTimeCommand));
    result.emplace_back(std::make_pair("GTIME(STRING,", TODO));
    result.emplace_back(std::make_pair("CURSOR", TODO));
    result.emplace_back(std::make_pair("CURS", CursCommand));
@@ -540,18 +542,18 @@ void EntryCommand(const std::string& /*line*/, const std::string& /*cmd*/, Compi
 void addSystemVariables(Environment& env)
  {
    env.symbols.intVars["STATUS"] = env.intVars.size();
-   env.intVars.emplace_back(IntVar("STATUS", 1ULL << 31L, 0U));
+   env.intVars.emplace_back(IntVar("STATUS", 0U, 1ULL << 31L, 0U));
    env.symbols.intVars["@REM"] = env.intVars.size();
-   env.intVars.emplace_back(IntVar("@REM", 1ULL << 31L, 0U));
+   env.intVars.emplace_back(IntVar("@REM", 0U, 1ULL << 31L, 0U));
    env.symbols.intVars["?@REM"] = env.intVars.size();
-   env.intVars.emplace_back(IntVar("?@REM", 1ULL << 47L, 0U));
+   env.intVars.emplace_back(IntVar("?@REM", 0U, 1ULL << 47L, 0U));
 
    env.symbols.strVars["EJECT"] = env.strVars.size();
-   env.strVars.emplace_back(StrVar("EJECT", 0U, ""));
+   env.strVars.emplace_back(StrVar("EJECT", 0U, 0U, ""));
    env.symbols.strVars["VTAB"] = env.strVars.size();
-   env.strVars.emplace_back(StrVar("VTAB", 0U, ""));
+   env.strVars.emplace_back(StrVar("VTAB", 0U, 0U, ""));
    env.symbols.strVars["BEEP"] = env.strVars.size();
-   env.strVars.emplace_back(StrVar("BEEP", 0U, ""));
+   env.strVars.emplace_back(StrVar("BEEP", 0U, 0U, ""));
  }
 
 bool IntegerLiteral(const std::string& line, size_t start, char delim, bool orEOL, std::string& number)
@@ -579,7 +581,7 @@ void StringCommand(const std::string& line, const std::string& cmd, CompilerStat
           {
             ConsumeStr(state, size, true);
             env.symbols.strVars[label] = env.strVars.size();
-            env.strVars.emplace_back(StrVar(label, std::stoull(size), "")); // Assume size_t == unsigned long long
+            env.strVars.emplace_back(StrVar(label, 0U, std::stoull(size), "")); // Assume size_t == unsigned long long
           }
          else
           {
@@ -614,7 +616,7 @@ void IntegerCommand(const std::string& line, const std::string& cmd, CompilerSta
        {
          ConsumeStr(state, label);
          env.symbols.intVars[label] = env.intVars.size();
-         env.intVars.emplace_back(IntVar(label, ('?' == label[0]) ? 1ULL << 47U : 1ULL << 31U, 0U));
+         env.intVars.emplace_back(IntVar(label, 0U, ('?' == label[0]) ? 1ULL << 47U : 1ULL << 31U, 0U));
        }
       else
        {
@@ -1111,7 +1113,7 @@ void SetCommand(const std::string& line, const std::string& cmd, CompilerState& 
           {
             ConsumeStr(state, initial);
             env.symbols.intVars[label] = env.intVars.size(); // Assume size_t == unsigned long long
-            env.intVars.emplace_back(IntVar(label, ('?' == label[0]) ? 1ULL << 47U : 1ULL << 31U, std::stoull(initial)));
+            env.intVars.emplace_back(IntVar(label, 0U, ('?' == label[0]) ? 1ULL << 47U : 1ULL << 31U, std::stoull(initial)));
           }
          else
           {
@@ -1583,14 +1585,8 @@ void StringAssignment(const std::string& line, CompilerState& state, Environment
 void NumberAssignment(const std::string& line, CompilerState& state, Environment& env)
  {
    size_t lineStart = state.charNo;
-   std::string label;
-   size_t varNo;
-   if (extractLabel(line, state.charNo, '=', false, label) && (env.symbols.intVars.end() != env.symbols.intVars.find(label)))
-    {
-      ConsumeStr(state, label);
-      varNo = env.symbols.intVars[label];
-    }
-   else
+   std::unique_ptr<NumberSetter> setter = RealNumberAssignment(line, state.charNo, env);
+   if (nullptr == setter.get())
     {
       PutString("Bad assignment target");
       NewLine();
@@ -1607,7 +1603,7 @@ void NumberAssignment(const std::string& line, CompilerState& state, Environment
    if (nullptr != value)
     {
       size_t lineEnd = state.charNo;
-      env.icode.emplace_back(std::make_unique<NumAssignImpl>(state.lineNo, lineStart, lineEnd, varNo, std::move(value)));
+      env.icode.emplace_back(std::make_unique<NumAssignImpl>(state.lineNo, lineStart, lineEnd, std::move(setter), std::move(value)));
     }
    else
     {
@@ -1645,7 +1641,7 @@ void DefineCommand(const std::string& line, const std::string& cmd, CompilerStat
           {
             ConsumeStr(state, value);
             env.symbols.strVars[label] = env.strVars.size();
-            env.strVars.emplace_back(StrVar(label, value.length(), value));
+            env.strVars.emplace_back(StrVar(label, 0U, value.length(), value));
           }
          else
           {
@@ -1730,6 +1726,65 @@ void CallCommand(const std::string& line, const std::string& cmd, CompilerState&
    else
     {
       PutString("Bad CALL");
+      NewLine();
+      CompilerFailure(state);
+    }
+   NextLine(state, env);
+ }
+
+void TableCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   std::string label;
+   ConsumeStr(state, cmd);
+   bool moreVars = false;
+   do
+    {
+      if (extractLabel(line, state.charNo, '(', false, label))
+       {
+         ConsumeStr(state, label, true);
+         std::string size;
+         if (IntegerLiteral(line, state.charNo, ')', false, size))
+          {
+            ConsumeStr(state, size, true);
+            env.symbols.intVars[label] = env.intVars.size();
+            env.intVars.emplace_back(IntVar(label, std::stoull(size), ('?' == label[0]) ? 1ULL << 47U : 1ULL << 31U, 0U));
+          }
+         else
+          {
+            PutString("Bad TABLE length");
+            NewLine();
+            CompilerFailure(state);
+          }
+       }
+      else
+       {
+         PutString("Bad TABLE name");
+         NewLine();
+         CompilerFailure(state);
+       }
+      moreVars = ',' == line[state.charNo];
+      if (moreVars)
+       {
+         ConsumeStr(state, ",");
+       }
+   } while (true == moreVars);
+   NextLine(state, env);
+ }
+
+void IntTimeCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ConsumeStr(state, cmd);
+   if (extractLabel(line, state.charNo, ')', true, label) && (env.symbols.intVars.end() != env.symbols.intVars.find(label)))
+    {
+      ConsumeStr(state, label, true);
+      size_t lineEnd = state.charNo;
+      env.icode.emplace_back(std::make_unique<GtimeIntImpl>(state.lineNo, lineStart, lineEnd, env.symbols.intVars[label]));
+    }
+   else
+    {
+      PutString("Bad INTEGER name in GTIME");
       NewLine();
       CompilerFailure(state);
     }
