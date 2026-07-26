@@ -234,7 +234,7 @@ void UnimplementedCommand(const std::string& /*line*/, const std::string& cmd, C
 
 void NextLine(CompilerState& state, const Environment& env)
  {
-   if ((state.charNo < env.source[state.lineNo].length()) && (env.source[state.lineNo][state.charNo] == '/'))
+   if ((state.charNo < env.source[state.lineNo].length()) && (env.source[state.lineNo][state.charNo] == '\\'))
     {
       state.charNo++;
     }
