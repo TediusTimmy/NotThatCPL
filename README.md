@@ -47,6 +47,7 @@ and then you can enter commands.
 `PRINTS` - Print a string expression.  
 `PRINTN` - Print a numeric expression.  
 `HELP` - Get help.  
+`STACK` - Print the call stack.  
 
 It tries to do sane things when you press Ctrl-C to interrupt it, but,
 interrupting it while waiting for input doesn't work right.

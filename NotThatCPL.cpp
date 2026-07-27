@@ -98,7 +98,7 @@ int main (int argc, char ** argv)
          PutString(": ");
          PutString(env.source[icode->lineNo].substr(0U, icode->lineStart).c_str());
          Emphasis();
-         PutString(env.source[icode->lineNo].substr(icode->lineStart, icode->lineEnd).c_str());
+         PutString(env.source[icode->lineNo].substr(icode->lineStart, icode->lineEnd - icode->lineStart).c_str());
          Normal();
          PutString(env.source[icode->lineNo].substr(icode->lineEnd).c_str());
          NewLine();
@@ -123,7 +123,8 @@ int main (int argc, char ** argv)
             PutString(": ");
             PutString(env.source[env.icode[env.pc]->lineNo].substr(0U, env.icode[env.pc]->lineStart).c_str());
             Emphasis();
-            PutString(env.source[env.icode[env.pc]->lineNo].substr(env.icode[env.pc]->lineStart, env.icode[env.pc]->lineEnd).c_str());
+            PutString(env.source[env.icode[env.pc]->lineNo].substr(env.icode[env.pc]->lineStart,
+               env.icode[env.pc]->lineEnd - env.icode[env.pc]->lineStart).c_str());
             Normal();
             PutString(env.source[env.icode[env.pc]->lineNo].substr(env.icode[env.pc]->lineEnd).c_str());
             NewLine();
