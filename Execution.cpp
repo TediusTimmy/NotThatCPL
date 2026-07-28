@@ -436,9 +436,8 @@ void GtimeStrImpl::execute(Environment& env)
       // Yes, I pulled this straight from Backwards.
    std::stringstream str;
    std::time_t nowTime;
-   std::tm* timeToDecompose;
    std::time(&nowTime);
-   timeToDecompose = std::localtime(&nowTime);
+   const std::tm* const timeToDecompose = std::localtime(&nowTime);
    str << std::setw(2) << std::setfill('0') << timeToDecompose->tm_hour << ':' <<
       std::setw(2) << std::setfill('0') << timeToDecompose->tm_min << ':' <<
       std::setw(2) << std::setfill('0') << timeToDecompose->tm_sec;
