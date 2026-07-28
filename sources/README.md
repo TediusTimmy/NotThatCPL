@@ -14,3 +14,4 @@ They are not mine. They are not subject to the license, as I can't relicense the
 * sieve.cepl
 * rogue.cepl
 * ced.cepl/ced5.cepl (It's a shame these only print to a printer)
+* wdog.cepl

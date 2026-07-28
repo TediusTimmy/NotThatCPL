@@ -91,7 +91,11 @@ class StackFrame final
 public:
    std::string subName;
    size_t ret;
-   StackFrame(const std::string& subName, size_t ret) : subName(subName), ret(ret) { }
+   size_t ints; // Retrieval counter
+   std::vector<int64_t> intArgs;
+   size_t strs;
+   std::vector<std::string> strArgs;
+   StackFrame(const std::string& subName, size_t ret) : subName(subName), ret(ret), ints(0U), strs(0U) { }
  };
 
 class Environment final

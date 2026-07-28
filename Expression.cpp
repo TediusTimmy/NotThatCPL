@@ -33,14 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "Execution.h"
 #include "Exceptions.h"
 
-class Plus final : public NumberExpr
- {
-   std::unique_ptr<NumberExpr> lhs, rhs;
-public:
-   Plus(std::unique_ptr<NumberExpr>&& lhs, std::unique_ptr<NumberExpr>&& rhs) : lhs(std::move(lhs)), rhs(std::move(rhs)) { }
-   virtual int64_t eval(Environment& env) const override { return lhs->eval(env) + rhs->eval(env); }
- };
-
 class Minus final : public NumberExpr
  {
    std::unique_ptr<NumberExpr> lhs, rhs;
@@ -199,13 +191,6 @@ class NumberIndexVar final : public NumberExpr
 public:
    NumberIndexVar(size_t var, std::unique_ptr<NumberExpr>&& index) : var(var), index(std::move(index)) { }
    virtual int64_t eval(Environment& env) const override { return env.intVars[var].getValue(static_cast<size_t>(index->eval(env))); }
- };
-
-class SingleNumberSetter final : public NumberSetter
- {
-public:
-   explicit SingleNumberSetter(size_t var) : NumberSetter(var) { }
-   virtual void set(Environment& env, int64_t val) const override { env.intVars[var].setValue(0U, val); }
  };
 
 class IndexedNumberSetter final : public NumberSetter

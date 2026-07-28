@@ -36,6 +36,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <algorithm>
 #include <chrono>
+#include <sstream>
+#include <iomanip>
 
 void StrVar::setValue(size_t index, const std::string& val)
  {
@@ -94,6 +96,11 @@ void IntVar::setValue(size_t index, int64_t val)
       PutString(" out of bounds.");
       NewLine();
     }
+ }
+
+void SingleNumberSetter::set(Environment& env, int64_t val) const
+ {
+   env.intVars[var].setValue(0U, val);
  }
 
 std::string StringVar::eval(const Environment& env) const
@@ -188,7 +195,15 @@ void ReadImpl::execute(Environment& env)
           }
          else // IO_NUMBER
           {
-            env.intVars[varNo].setValue(0U, std::stoll(next));
+            try
+             {
+               env.intVars[varNo].setValue(0U, std::stoll(next));
+             }
+            catch (const std::invalid_argument&)
+             {
+               env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 1);
+               return;
+             }
           }
        }
       else
@@ -249,7 +264,7 @@ void GotoImpl::fixJumps(const std::map<std::string, size_t>& labels, const std::
 void IfImpl::execute(Environment& env)
  {
    bool cond = condition->eval(env);
-   if (!cond)
+   if (!cond) // This negation has bitten me in every use except IF
     {
       env.pc = orElse - 1U; // Account for auto increment
     }
@@ -338,8 +353,16 @@ void ReadBImpl::execute(Environment& env)
 
 void CallImpl::execute(Environment& env)
  {
-   env.stack.push_back(StackFrame(label, env.pc)); // ACCOUNTS FOR auto increment
+   env.stack.emplace_back(StackFrame(label, env.pc)); // ACCOUNTS FOR auto increment
    env.pc = target - 1U; // Account for auto increment
+   for (const auto& arg : intArgs)
+    {
+      env.stack.back().intArgs.emplace_back(arg->eval(env));
+    }
+   for (const auto& arg : strArgs)
+    {
+      env.stack.back().strArgs.emplace_back(arg->eval(env));
+    }
  }
 
 void CallImpl::fixJumps(const std::map<std::string, size_t>&, const std::map<std::string, size_t>& subs)
@@ -368,7 +391,7 @@ void ReturnImpl::execute(Environment& env)
     {
       PutString("RETURN without CALL");
       NewLine();
-      throw StopCode(3);
+      throw StopCode(4);
     }
  }
 
@@ -405,5 +428,49 @@ void RewindImpl::execute(Environment& env)
    for (size_t fileNo : fileNos)
     {
       env.files[fileNo]->rewind();
+    }
+ }
+
+void GtimeStrImpl::execute(Environment& env)
+ {
+      // Yes, I pulled this straight from Backwards.
+   std::stringstream str;
+   std::time_t nowTime;
+   std::tm* timeToDecompose;
+   std::time(&nowTime);
+   timeToDecompose = std::localtime(&nowTime);
+   str << std::setw(2) << std::setfill('0') << timeToDecompose->tm_hour << ':' <<
+      std::setw(2) << std::setfill('0') << timeToDecompose->tm_min << ':' <<
+      std::setw(2) << std::setfill('0') << timeToDecompose->tm_sec;
+   env.strVars[var].setValue(0U, str.str());
+ }
+
+void RetrieveStrImpl::execute(Environment& env)
+ {
+   if ((env.stack.size() > 0) && (env.stack.back().strs < env.stack.back().strArgs.size()))
+    {
+      env.strVars[var].setValue(0U, env.stack.back().strArgs[env.stack.back().strs]);
+      ++env.stack.back().strs;
+    }
+   else
+    {
+      PutString("Bad RETRIEVE(STRING");
+      NewLine();
+      throw StopCode(4);
+    }
+ }
+
+void RetrieveIntImpl::execute(Environment& env)
+ {
+   if ((env.stack.size() > 0) && (env.stack.back().ints < env.stack.back().intArgs.size()))
+    {
+      env.intVars[var].setValue(0U, env.stack.back().intArgs[env.stack.back().ints]);
+      ++env.stack.back().ints;
+    }
+   else
+    {
+      PutString("Bad RETRIEVE(INTEGER");
+      NewLine();
+      throw StopCode(4);
     }
  }

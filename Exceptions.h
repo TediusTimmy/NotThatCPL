@@ -58,18 +58,6 @@ public:
    const char * what() const throw() { return message.c_str(); }
  };
 
-// Thrown by the interpreter when the program being interpreted does something wrong.
-// Should never leave the interpreter.
-class LogicError final : public std::exception
- {
-private:
-   std::string message;
-public:
-   explicit LogicError(const std::string& message) : message(message) { }
-   ~LogicError() throw() { }
-   const char * what() const throw() { return message.c_str(); }
- };
-
 // Thrown by the interpreter when STOP is encountered.
 // Other cases:
 //    1 : cepl file not provided

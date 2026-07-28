@@ -106,6 +106,14 @@ public:
    virtual int64_t eval(Environment&) const override;
  };
 
+class Plus final : public NumberExpr
+ {
+   std::unique_ptr<NumberExpr> lhs, rhs;
+public:
+   Plus(std::unique_ptr<NumberExpr>&& lhs, std::unique_ptr<NumberExpr>&& rhs) : lhs(std::move(lhs)), rhs(std::move(rhs)) { }
+   virtual int64_t eval(Environment& env) const override { return lhs->eval(env) + rhs->eval(env); }
+ };
+
 class NumberSetter
  {
 protected:
@@ -113,6 +121,13 @@ protected:
 public:
    explicit NumberSetter(size_t var) : var(var) { }
    virtual void set(Environment&, int64_t) const = 0;
+ };
+
+class SingleNumberSetter final : public NumberSetter
+ {
+public:
+   explicit SingleNumberSetter(size_t var) : NumberSetter(var) { }
+   virtual void set(Environment& env, int64_t val) const override;
  };
 
 /*
@@ -438,7 +453,11 @@ class CallImpl final : public ICode
 public:
    std::string label;
    size_t target;
-   CallImpl (size_t lineNo, size_t lineStart, size_t lineEnd, const std::string& label) : ICode(lineNo, lineStart, lineEnd), label(label), target(0U) { }
+   std::vector<std::unique_ptr<NumberExpr> > intArgs;
+   std::vector<std::unique_ptr<StringExpr> > strArgs;
+   CallImpl (size_t lineNo, size_t lineStart, size_t lineEnd, const std::string& label,
+      std::vector<std::unique_ptr<NumberExpr> >&& intArgs, std::vector<std::unique_ptr<StringExpr> >&& strArgs) :
+      ICode(lineNo, lineStart, lineEnd), label(label), target(0U), intArgs(std::move(intArgs)), strArgs(std::move(strArgs)) { }
    virtual void execute(Environment&) override;
    virtual void fixJumps(const std::map<std::string, size_t>&, const std::map<std::string, size_t>&) override;
  };
@@ -465,6 +484,30 @@ class RewindImpl final : public ICode
 public:
    std::vector<size_t> fileNos;
    RewindImpl (size_t lineNo, size_t lineStart, size_t lineEnd, const std::vector<size_t>& fileNos) : ICode(lineNo, lineStart, lineEnd), fileNos(fileNos) { }
+   virtual void execute(Environment&) override;
+ };
+
+class GtimeStrImpl final : public ICode
+ {
+public:
+   size_t var;
+   GtimeStrImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t var) : ICode(lineNo, lineStart, lineEnd), var(var) { }
+   virtual void execute(Environment&) override;
+ };
+
+class RetrieveStrImpl final : public ICode
+ {
+public:
+   size_t var;
+   RetrieveStrImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t var) : ICode(lineNo, lineStart, lineEnd), var(var) { }
+   virtual void execute(Environment&) override;
+ };
+
+class RetrieveIntImpl final : public ICode
+ {
+public:
+   size_t var;
+   RetrieveIntImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t var) : ICode(lineNo, lineStart, lineEnd), var(var) { }
    virtual void execute(Environment&) override;
  };
 

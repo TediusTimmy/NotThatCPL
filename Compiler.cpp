@@ -290,6 +290,10 @@ void SubroutineCommand(const std::string&, const std::string&, CompilerState&, E
 void ReturnCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void ReturnToCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void RewindCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void StrTimeCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void ForLoopCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void RetrieveIntCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void RetrieveStrCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 
 // TODO : remove
 void TODO(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -345,7 +349,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("GOTO(", TODO)); // Switch statement
    result.emplace_back(std::make_pair("GOTO", GotoCommand));
    result.emplace_back(std::make_pair("GTIME(INTEGER,", IntTimeCommand)); // I'm being shifty here...
-   result.emplace_back(std::make_pair("GTIME(STRING,", TODO)); // but only as shifty as the documentation!
+   result.emplace_back(std::make_pair("GTIME(STRING,", StrTimeCommand)); // but only as shifty as the documentation!
    // HLDR is a subroutine
    result.emplace_back(std::make_pair("HOLD", UnimplementedCommand)); // File/record locking
    result.emplace_back(std::make_pair("IFSTRING", IfsCommand)); // This is why we have a table
@@ -359,7 +363,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    // LEN is a function.
    result.emplace_back(std::make_pair("LOAD", UnimplementedCommand)); // Load another program
    result.emplace_back(std::make_pair("LOOPWHILE", LoopWhileCommand)); // This is why we have a table
-   result.emplace_back(std::make_pair("LOOP", TODO)); // This is a FOR loop
+   result.emplace_back(std::make_pair("LOOP", ForLoopCommand)); // This is a FOR loop
    // MAX is a function
    // MIN is a function
    // MOD is a function
@@ -374,7 +378,8 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("READ", ReadCommand));
    result.emplace_back(std::make_pair("RECORD", RecordCommand));
    result.emplace_back(std::make_pair("RESET", UnimplementedCommand)); // No tape files
-   result.emplace_back(std::make_pair("RETRIEVE", TODO));
+   result.emplace_back(std::make_pair("RETRIEVE(INTEGER,", RetrieveIntCommand));
+   result.emplace_back(std::make_pair("RETRIEVE(STRING,", RetrieveStrCommand));
    result.emplace_back(std::make_pair("RETURNTO", ReturnToCommand)); // This is why we have a table
    result.emplace_back(std::make_pair("RETURN", ReturnCommand));
    result.emplace_back(std::make_pair("REWIND", RewindCommand));
@@ -1828,13 +1833,73 @@ void CallCommand(const std::string& line, const std::string& cmd, CompilerState&
       else
        {
          ConsumeStr(state, function);
-         size_t lineEnd = state.charNo;
-         env.icode.emplace_back(std::make_unique<CallImpl>(state.lineNo, lineStart, lineEnd, function));
-         // TODO : arguments
+         std::vector<std::unique_ptr<NumberExpr> > intArgs;
+         std::vector<std::unique_ptr<StringExpr> > strArgs;
          if ('(' == line[state.charNo])
           {
-            throw Unimplemented("CALL arguments");
+            ++state.charNo;
+            bool done = false;
+            do
+             {
+               std::string temp;
+               if (std::isdigit(line[state.charNo]))
+                {
+                  while (std::isdigit(line[state.charNo]))
+                   {
+                     temp += line[state.charNo++];
+                   }
+                  intArgs.emplace_back(std::make_unique<NumberConst>(std::stoll(temp)));
+                }
+               else if ('\'' == line[state.charNo])
+                {
+                  if (!StringLiteral(line, state.charNo, temp))
+                   {
+                     PutString("Bad CALL argument string literal");
+                     NewLine();
+                     CompilerFailure(state);
+                   }
+                  strArgs.emplace_back(std::make_unique<StringConst>(temp));
+                }
+               else
+                {
+                  while ((',' != line[state.charNo]) && (')' != line[state.charNo]) &&
+                     ('\\' != line[state.charNo]) && ('\0' != line[state.charNo]))
+                   {
+                     temp += line[state.charNo++];
+                   }
+                  if (env.symbols.intVars.end() != env.symbols.intVars.find(temp))
+                   {
+                     intArgs.emplace_back(std::make_unique<NumberVar>(env.symbols.intVars[temp]));
+                   }
+                  else if (env.symbols.strVars.end() != env.symbols.strVars.find(temp))
+                   {
+                     strArgs.emplace_back(std::make_unique<StringVar>(env.symbols.strVars[temp]));
+                   }
+                  else
+                   {
+                     PutString("Bad CALL argument");
+                     NewLine();
+                     CompilerFailure(state);
+                   }
+                }
+               if ((',' == line[state.charNo]) || (')' == line[state.charNo]))
+                {
+                  if (')' == line[state.charNo])
+                   {
+                     done = true;
+                   }
+                  ++state.charNo;
+                }
+               else
+                {
+                  PutString("Bad CALL argument list");
+                  NewLine();
+                  CompilerFailure(state);
+                }
+             } while (!done);
           }
+         size_t lineEnd = state.charNo;
+         env.icode.emplace_back(std::make_unique<CallImpl>(state.lineNo, lineStart, lineEnd, function, std::move(intArgs), std::move(strArgs)));
        }
     }
    else
@@ -2093,5 +2158,154 @@ void RewindCommand(const std::string& line, const std::string& cmd, CompilerStat
     } while (!done);
    size_t lineEnd = state.charNo;
    env.icode.emplace_back(std::make_unique<RewindImpl>(state.lineNo, lineStart, lineEnd, fileNos));
+   NextLine(state, env);
+ }
+
+void StrTimeCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ConsumeStr(state, cmd);
+   if (extractLabel(line, state.charNo, ')', true, label) && (env.symbols.strVars.end() != env.symbols.strVars.find(label)))
+    {
+      ConsumeStr(state, label, true);
+      size_t lineEnd = state.charNo;
+      env.icode.emplace_back(std::make_unique<GtimeStrImpl>(state.lineNo, lineStart, lineEnd, env.symbols.strVars[label]));
+    }
+   else
+    {
+      PutString("Bad STRING name in GTIME");
+      NewLine();
+      CompilerFailure(state);
+    }
+   NextLine(state, env);
+ }
+
+void ForLoopCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t startLine = state.lineNo;
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd);
+
+   std::string counter;
+   if (extractLabel(line, state.charNo, '(', false, counter) && (env.symbols.intVars.end() != env.symbols.intVars.find(counter)))
+    {
+      ConsumeStr(state, counter, true);
+    }
+   else
+    {
+      PutString("Bad iterator name in LOOP");
+      NewLine();
+      CompilerFailure(state);
+    }
+   size_t countVar = env.symbols.intVars[counter];
+
+   std::unique_ptr<NumberExpr> initial = Compiler::NumberExpression(line, state.charNo, ',', false, env);
+   if (nullptr == initial.get())
+    {
+      PutString("Bad LOOP initial value");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<NumAssignImpl>(state.lineNo, lineStart, lineEnd, std::make_unique<SingleNumberSetter>(countVar), std::move(initial)));
+
+   ++state.charNo; // Consume ','
+   size_t termStart = state.charNo;
+   std::unique_ptr<NumberExpr> termVal = Compiler::NumberExpression(line, state.charNo, ',', false, env);
+   if (nullptr == termVal.get())
+    {
+      PutString("Bad LOOP termination value");
+      NewLine();
+      CompilerFailure(state);
+    }
+   size_t termEnd = state.charNo;
+
+   size_t instr = env.icode.size();
+   env.icode.emplace_back(std::unique_ptr<ICode>());
+
+   ++state.charNo; // Consume ','
+   size_t incStart = state.charNo;
+   std::unique_ptr<NumberExpr> incVal = Compiler::NumberExpression(line, state.charNo, ')', false, env);
+   if (nullptr == incVal.get())
+    {
+      PutString("Bad LOOP increment value");
+      NewLine();
+      CompilerFailure(state);
+    }
+   size_t incEnd = state.charNo;
+   ++state.charNo; // Consume ')'
+   NextLine(state, env); // Ensure we are on a new line.
+
+   std::string nextLine;
+   bool moreCommands = true;
+   while (true == moreCommands)
+    {
+      if (getNextLine(state, env, nextLine))
+       {
+         std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> next = getNextCommand(nextLine, state.charNo);
+         if ("ENDLOOP" != next.first)
+          {
+            next.second(nextLine, next.first, state, env);
+          }
+         else
+          {
+            env.icode.emplace_back(std::make_unique<NumAssignImpl>(startLine, incStart, incEnd, std::make_unique<SingleNumberSetter>(countVar),
+               std::make_unique<Plus>(std::make_unique<NumberVar>(countVar), std::move(incVal))));
+            env.icode.emplace_back(std::make_unique<ElseImpl>(state.lineNo, state.charNo, state.charNo + next.first.length(), instr));
+            ConsumeStr(state, next.first);
+            moreCommands = false;
+          }
+       }
+      else
+       {
+         moreCommands = false;
+       }
+    }
+   NextLine(state, env); // Consume ENDLOOP
+
+   size_t orElse = env.icode.size();
+   env.icode[instr] = std::make_unique<IfImpl>(startLine, termStart, termEnd,
+      std::make_unique<Less<NumberExpr> >(std::make_unique<NumberVar>(countVar), std::move(termVal)), orElse);
+ }
+
+void RetrieveIntCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ConsumeStr(state, cmd);
+   if (extractLabel(line, state.charNo, ')', true, label) && (env.symbols.intVars.end() != env.symbols.intVars.find(label)))
+    {
+      ConsumeStr(state, label, true);
+      size_t lineEnd = state.charNo;
+      env.icode.emplace_back(std::make_unique<RetrieveIntImpl>(state.lineNo, lineStart, lineEnd, env.symbols.intVars[label]));
+    }
+   else
+    {
+      PutString("Bad INTEGER name in RETRIEVE");
+      NewLine();
+      CompilerFailure(state);
+    }
+   NextLine(state, env);
+ }
+
+void RetrieveStrCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ConsumeStr(state, cmd);
+   if (extractLabel(line, state.charNo, ')', true, label) && (env.symbols.strVars.end() != env.symbols.strVars.find(label)))
+    {
+      ConsumeStr(state, label, true);
+      size_t lineEnd = state.charNo;
+      env.icode.emplace_back(std::make_unique<RetrieveStrImpl>(state.lineNo, lineStart, lineEnd, env.symbols.strVars[label]));
+    }
+   else
+    {
+      PutString("Bad STRING name in RETRIEVE");
+      NewLine();
+      CompilerFailure(state);
+    }
    NextLine(state, env);
  }
