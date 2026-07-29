@@ -77,6 +77,7 @@ void CheckForSigInt(void)
  {
    if (signalled)
     {
+      signalled = 0;
       throw SigInt();
     }
  }

@@ -9,8 +9,8 @@ INTEGER CNT, XPA, XPB              ; Counter, X-position A, X-position B
 INTEGER TOT, TIM, RND              ; Neighbor total, Morris Day, random number
 INTEGER TMP, LIN, MDN              ; Temporary holding cell, total lines
 STRING PNT(1)                      ; Define the output string as 1 character
-TABLE ARRA (64)                    ; A Array (64 integers)
-TABLE ARRB (64)                    ; B Array (64 integers)
+TABLE ARRA (68)                    ; A Array (64 integers)
+TABLE ARRB (68)                    ; B Array (64 integers)
 ;
 ENTRYPOINT CRT                     ; Defines symbols that are used by other libs
 ENTRY                              ; Inidcates the start of actual code
@@ -20,7 +20,7 @@ TOP:
 ; Generate a random starting seed
 CNT=0                              ; Zero out the counter
 MDN=1
-LOOP WHILE (CNT.LE.64)             ; First loop to generate a new life
+LOOP WHILE (CNT.LE.68)             ; First loop to generate a new life
      GTIME (INTEGER, TIM)          ; Get the current time
      RND = MOD (TIM, MDN)            ; Divide time by 3 and get remainder
      IF (RND.LE.1) DO              ; If remainder is less than 1
@@ -33,8 +33,8 @@ LOOP WHILE (CNT.LE.64)             ; First loop to generate a new life
      INCR MDN
 END LOOP
 ; Print that seed
-CNT=0                              ; Zero out the counter
-LOOP WHILE (CNT.LE.64)             ; Loop for printing
+CNT=3                              ; Zero out the counter
+LOOP WHILE (CNT.LE.66)             ; Loop for printing
      TMP = ARRA(CNT)               ; Get the value from the array
      IF (TMP.EQ.0)'PNT'="' '"      ; String assignments are weird
      IF (TMP.EQ.1)'PNT'="'*'"      ; This should work
@@ -46,7 +46,7 @@ WRITE(CRT,CELL)''                  ; This should print a new line
 LIN = 0
 LOOP WHILE (LIN.LE.25)             ; Main loop to do 25 lines of life
      CNT = 3                       ; Counter for moving through array
-     LOOP WHILE (CNT.LE.62)        ; Loop for calculating next life
+     LOOP WHILE (CNT.LE.66)        ; Loop for calculating next life
           TOT = 0                  ; Zero out total number of neighbors
           TMP = ARRA(CNT-2)        ; Count up total number of neighbors
           IF (TMP.EQ.1)INCR TOT
@@ -77,8 +77,8 @@ LOOP WHILE (LIN.LE.25)             ; Main loop to do 25 lines of life
           INCR CNT
      END LOOP
      ; Copy and print the new line
-     CNT = 0                       ; Counter for moving through array
-     LOOP WHILE (CNT.LE.64)        ; Loop for copying and printing
+     CNT = 3                       ; Counter for moving through array
+     LOOP WHILE (CNT.LE.66)        ; Loop for copying and printing
           TMP = ARRB(CNT)
           ARRA(CNT) = TMP
           IF (TMP.EQ.0)'PNT'="' '"      ; String assignments are weird

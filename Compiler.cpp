@@ -1545,6 +1545,7 @@ void CursCommand(const std::string& line, const std::string& cmd, CompilerState&
       NewLine();
       CompilerFailure(state);
     }
+   ++state.charNo; // Consume ')'
 
    size_t lineEnd = state.charNo;
    env.icode.emplace_back(std::make_unique<CursImpl>(state.lineNo, lineStart, lineEnd, std::move(str)));

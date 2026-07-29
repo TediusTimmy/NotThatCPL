@@ -61,3 +61,10 @@ Only handles one left-hand-side value.
 ## TABLE
 
 Only integer tables, for now.
+
+
+## RETRIEVE
+
+This unholy abomination against all that is good has only been
+implemented for INTEGER and STRING, as I don't even know how the
+self-modifying code versions would work.
