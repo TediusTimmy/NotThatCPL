@@ -126,7 +126,7 @@ public:
    virtual void rewind(void) override
     {
       backing.clear();
-      backing.seekg(0U);
+      backing.seekg(0U, std::ios_base::beg);
     }
 
    virtual void flush(void) override

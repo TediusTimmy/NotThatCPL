@@ -242,6 +242,7 @@ void ReadImpl::execute(Environment& env)
          index = 0U;
        }
     }
+   env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 0);
  }
 
 void StopImpl::execute(Environment&)
@@ -331,6 +332,7 @@ void NumAssignImpl::execute(Environment& env)
     {
       var->set(env, newVal);
     }
+   env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 0);
  }
 
 void EndFileImpl::execute(Environment& env)
