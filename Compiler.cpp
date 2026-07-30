@@ -294,6 +294,9 @@ void StrTimeCommand(const std::string&, const std::string&, CompilerState&, Envi
 void ForLoopCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void RetrieveIntCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void RetrieveStrCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void TableGetCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void TablePutCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void CurbCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 
 // TODO : remove
 void TODO(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -319,8 +322,8 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("CLOSE", CloseCommand));
    result.emplace_back(std::make_pair("COPY", UnimplementedCommand));
    result.emplace_back(std::make_pair("CPL", UnimplementedCommand));
-   result.emplace_back(std::make_pair("CURB", UnimplementedCommand)); // Clear line ???
-   result.emplace_back(std::make_pair("CURP", TODO));
+   result.emplace_back(std::make_pair("CURB", CurbCommand));
+   result.emplace_back(std::make_pair("CURP", GotoXYCommand));
    result.emplace_back(std::make_pair("CURSOR", GotoXYCommand)); // This is why we have a table
    result.emplace_back(std::make_pair("CURS", CursCommand));
    result.emplace_back(std::make_pair("DECODE", UnimplementedCommand)); // String manipulation ???
@@ -378,7 +381,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("READ", ReadCommand));
    result.emplace_back(std::make_pair("RECORD", RecordCommand));
    result.emplace_back(std::make_pair("RESET", UnimplementedCommand)); // No tape files
-   result.emplace_back(std::make_pair("RETRIEVE(INTEGER,", RetrieveIntCommand));
+   result.emplace_back(std::make_pair("RETRIEVE(NUMBER,", RetrieveIntCommand));
    result.emplace_back(std::make_pair("RETRIEVE(STRING,", RetrieveStrCommand));
    result.emplace_back(std::make_pair("RETURNTO", ReturnToCommand)); // This is why we have a table
    result.emplace_back(std::make_pair("RETURN", ReturnCommand));
@@ -396,8 +399,8 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("SUBROUTINE", SubroutineCommand));
    result.emplace_back(std::make_pair("SYSTEM", UnimplementedCommand)); // There can be only one
    result.emplace_back(std::make_pair("TABLE", TableCommand));
-   result.emplace_back(std::make_pair("TBLGET", TODO));
-   result.emplace_back(std::make_pair("TBLPUT", TODO));
+   result.emplace_back(std::make_pair("TBLGET", TableGetCommand));
+   result.emplace_back(std::make_pair("TBLPUT", TablePutCommand));
    result.emplace_back(std::make_pair("TITLE", IgnoredCommand));
    result.emplace_back(std::make_pair("WRITEB", UnimplementedCommand)); // Unformatted IO is only for the screen
    result.emplace_back(std::make_pair("WRITEN", WriteCommand)); // This is why we have a table
@@ -510,8 +513,18 @@ void checkForLabel(const std::string& line, CompilerState& state, const Environm
       std::string label;
       if (extractLineLabel(line, 0U, ':', false, label))
        {
-         state.charNo = label.length() + 1U;
-         state.labels[label] = env.icode.size();
+         if (state.labels.end() == state.labels.find(label))
+          {
+            state.charNo = label.length() + 1U;
+            state.labels[label] = env.icode.size();
+          }
+         else
+          {
+            PutString("Duplicate label ");
+            PutString(label.c_str());
+            NewLine();
+            CompilerFailure(state);
+          }
        }
     }
  }
@@ -527,7 +540,7 @@ void FileCommand(const std::string& line, const std::string& cmd, CompilerState&
  {
    std::string label;
    ConsumeStr(state, cmd);
-   if (extractLabel(line, state.charNo, ':', false, label))
+   if (extractLabel(line, state.charNo, ':', false, label) && (state.files.end() == state.files.find(label)))
     {
       ConsumeStr(state, label, true);
       std::string number;
@@ -610,11 +623,15 @@ void addSystemVariables(Environment& env)
 bool IntegerLiteral(const std::string& line, size_t start, char delim, bool orEOL, std::string& number)
  {
    number = "";
+   if ('-' == line[start])
+    {
+      number += line[start++];
+    }
    while (std::isdigit(line[start]))
     {
       number += line[start++];
     }
-   return (number.length() != 0U) && ((line[start] == delim) || (orEOL && ('\0' == line[start])));
+   return (number.length() != 0U) && ("-" != number) && ((line[start] == delim) || (orEOL && ('\0' == line[start])));
  }
 
 void StringCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
@@ -624,7 +641,8 @@ void StringCommand(const std::string& line, const std::string& cmd, CompilerStat
    bool moreVars = false;
    do
     {
-      if (extractLabel(line, state.charNo, '(', false, label))
+      if (extractLabel(line, state.charNo, '(', false, label) &&
+         ((env.symbols.intVars.end() == env.symbols.intVars.find(label)) && (env.symbols.strVars.end() == env.symbols.strVars.find(label))))
        {
          ConsumeStr(state, label, true);
          std::string size;
@@ -663,7 +681,8 @@ void IntegerCommand(const std::string& line, const std::string& cmd, CompilerSta
    bool moreVars = false;
    do
     {
-      if (extractLabel(line, state.charNo, ',', true, label))
+      if (extractLabel(line, state.charNo, ',', true, label) &&
+         ((env.symbols.intVars.end() == env.symbols.intVars.find(label)) && (env.symbols.strVars.end() == env.symbols.strVars.find(label))))
        {
          ConsumeStr(state, label);
          env.symbols.intVars[label] = env.intVars.size();
@@ -688,7 +707,7 @@ void FormatCommand(const std::string& line, const std::string& cmd, CompilerStat
  {
    std::string label;
    ConsumeStr(state, cmd);
-   if (extractLabel(line, state.charNo, ':', true, label))
+   if (extractLabel(line, state.charNo, ':', true, label) && (state.formats.end() == state.formats.find(label)))
     {
       ConsumeStr(state, label);
       std::vector<FORMAT>& format = state.formats[label];
@@ -857,6 +876,7 @@ std::unique_ptr<NumberExpr> Compiler::NumberExpression(const std::string& line, 
 
 void WriteCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
  {
+   size_t startLine = state.lineNo;
    size_t lineStart = state.charNo;
    ConsumeStr(state, cmd, true); // Don't check that it's a '('
    std::string fileVar, format;
@@ -876,8 +896,16 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
       const std::vector<FORMAT>& formatVec = state.formats[format];
       std::vector<std::unique_ptr<WritableExpr> > vals;
       bool done = false;
+      std::string curLine = line;
       do
        {
+         // Line continuation.
+         if (('-' == curLine[state.charNo]) && ('\0' == curLine[state.charNo + 1U]))
+          {
+            ++state.lineNo;
+            state.charNo = 0U;
+            curLine = env.source[state.lineNo];
+          }
          while (formatVec[index] == IO_BLANK)
           {
             ++index;
@@ -888,7 +916,7 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
           }
          if (IO_STRING == formatVec[index])
           {
-            std::unique_ptr<StringExpr> strVal = Compiler::StringExpression(line, state.charNo, ',', true, env);
+            std::unique_ptr<StringExpr> strVal = Compiler::StringExpression(curLine, state.charNo, ',', true, env);
             if (nullptr != strVal.get())
              {
                vals.emplace_back(std::move(strVal));
@@ -902,7 +930,7 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
           }
          else if (IO_NUMBER == formatVec[index])
           {
-            std::unique_ptr<NumberExpr> numVal = Compiler::NumberExpression(line, state.charNo, ',', true, env);
+            std::unique_ptr<NumberExpr> numVal = Compiler::NumberExpression(curLine, state.charNo, ',', true, env);
             if (nullptr != numVal.get())
              {
                vals.emplace_back(std::move(numVal));
@@ -914,7 +942,7 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
                CompilerFailure(state);
              }
           }
-         if (',' != line[state.charNo])
+         if (',' != curLine[state.charNo])
           {
             done = true;
           }
@@ -929,13 +957,17 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
           }
        } while (!done);
       size_t lineEnd = state.charNo;
+      if (state.lineNo != startLine)
+       {
+         lineEnd = line.length();
+       }
       if ("WRITE" == cmd)
        {
-         env.icode.emplace_back(std::make_unique<WriteImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], formatVec, std::move(vals)));
+         env.icode.emplace_back(std::make_unique<WriteImpl>(startLine, lineStart, lineEnd, state.files[fileVar], formatVec, std::move(vals)));
        }
       else
        {
-         env.icode.emplace_back(std::make_unique<WritenImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], formatVec, std::move(vals)));
+         env.icode.emplace_back(std::make_unique<WritenImpl>(startLine, lineStart, lineEnd, state.files[fileVar], formatVec, std::move(vals)));
        }
     }
    else
@@ -1256,7 +1288,8 @@ void SetCommand(const std::string& line, const std::string& cmd, CompilerState& 
    bool moreVars = false;
    do
     {
-      if (extractLabel(line, state.charNo, ':', false, label))
+      if (extractLabel(line, state.charNo, ':', false, label) &&
+         ((env.symbols.intVars.end() == env.symbols.intVars.find(label)) && (env.symbols.strVars.end() == env.symbols.strVars.find(label))))
        {
          ConsumeStr(state, label, true);
          std::string initial;
@@ -1294,58 +1327,76 @@ void IfCommand(const std::string& line, const std::string& cmd, CompilerState& s
    size_t lineStart = state.charNo;
    ConsumeStr(state, cmd, true); // Don't check for '('
 
-   // TODO implicit .NE.0
+   size_t temp = state.charNo;
+   bool nonZero = false;
    std::unique_ptr<NumberExpr> lhs = Compiler::NumberExpression(line, state.charNo, '.', false, env);
    if (nullptr == lhs.get())
     {
-      PutString("Bad IF condition lhs");
-      NewLine();
-      CompilerFailure(state);
+      state.charNo = temp;
+      lhs = Compiler::NumberExpression(line, state.charNo, ')', false, env);
+      if (nullptr == lhs.get())
+       {
+         PutString("Bad IF condition lhs");
+         NewLine();
+         CompilerFailure(state);
+       }
+      else
+       {
+         nonZero = true;
+       }
     }
-
-   std::string predicate = line.substr(state.charNo, 4U);
-   ConsumeStr(state, predicate);
-
-   std::unique_ptr<NumberExpr> rhs = Compiler::NumberExpression(line, state.charNo, ')', false, env);
-   if (nullptr == rhs.get())
-    {
-      PutString("Bad IF condition rhs");
-      NewLine();
-      CompilerFailure(state);
-    }
-   ++state.charNo; // Consume ')'
 
    std::unique_ptr<Predicate<NumberExpr> > condition;
-   if (".EQ." == predicate)
+
+   if (!nonZero)
     {
-      condition = std::make_unique<Equals<NumberExpr> >(std::move(lhs), std::move(rhs));
-    }
-   else if (".NE." == predicate)
-    {
-      condition = std::make_unique<NotEquals<NumberExpr> >(std::move(lhs), std::move(rhs));
-    }
-   else if (".LE." == predicate)
-    {
-      condition = std::make_unique<LessEqual<NumberExpr> >(std::move(lhs), std::move(rhs));
-    }
-   else if (".GE." == predicate)
-    {
-      condition = std::make_unique<GreaterEqual<NumberExpr> >(std::move(lhs), std::move(rhs));
-    }
-   else if (".GT." == predicate)
-    {
-      condition = std::make_unique<Greater<NumberExpr> >(std::move(lhs), std::move(rhs));
-    }
-   else if (".LT." == predicate)
-    {
-      condition = std::make_unique<Less<NumberExpr> >(std::move(lhs), std::move(rhs));
+      std::string predicate = line.substr(state.charNo, 4U);
+      ConsumeStr(state, predicate);
+
+      std::unique_ptr<NumberExpr> rhs = Compiler::NumberExpression(line, state.charNo, ')', false, env);
+      if (nullptr == rhs.get())
+       {
+         PutString("Bad IF condition rhs");
+         NewLine();
+         CompilerFailure(state);
+       }
+
+      if (".EQ." == predicate)
+       {
+         condition = std::make_unique<Equals<NumberExpr> >(std::move(lhs), std::move(rhs));
+       }
+      else if (".NE." == predicate)
+       {
+         condition = std::make_unique<NotEquals<NumberExpr> >(std::move(lhs), std::move(rhs));
+       }
+      else if (".LE." == predicate)
+       {
+         condition = std::make_unique<LessEqual<NumberExpr> >(std::move(lhs), std::move(rhs));
+       }
+      else if (".GE." == predicate)
+       {
+         condition = std::make_unique<GreaterEqual<NumberExpr> >(std::move(lhs), std::move(rhs));
+       }
+      else if (".GT." == predicate)
+       {
+         condition = std::make_unique<Greater<NumberExpr> >(std::move(lhs), std::move(rhs));
+       }
+      else if (".LT." == predicate)
+       {
+         condition = std::make_unique<Less<NumberExpr> >(std::move(lhs), std::move(rhs));
+       }
+      else
+       {
+         PutString("Bad relation in IF");
+         NewLine();
+         CompilerFailure(state);
+       }
     }
    else
     {
-      PutString("Bad relation in IF");
-      NewLine();
-      CompilerFailure(state);
+      condition = std::make_unique<NotEquals<NumberExpr> >(std::move(lhs), std::make_unique<NumberConst>(0U));
     }
+   ++state.charNo; // Consume ')'
 
    size_t instr = env.icode.size();
    env.icode.emplace_back(std::unique_ptr<ICode>());
@@ -1693,7 +1744,7 @@ void StringAssignment(const std::string& line, CompilerState& state, Environment
       CompilerFailure(state);
     }
    size_t lineEnd = state.charNo;
-   env.icode.emplace_back(std::make_unique<StrAssignImpl>(state.lineNo, lineStart, lineEnd, varNo, std::move(result)));
+   env.icode.emplace_back(std::make_unique<StrAssignImpl>(state.lineNo, lineStart, lineEnd, std::make_unique<SingleStringSetter>(varNo), std::move(result)));
  }
 
 void NumberAssignment(const std::string& line, CompilerState& state, Environment& env)
@@ -1747,13 +1798,13 @@ void DefineCommand(const std::string& line, const std::string& cmd, CompilerStat
    bool moreVars = false;
    do
     {
-      if (extractLabel(line, state.charNo, ':', false, label))
+      if (extractLabel(line, state.charNo, ':', false, label) &&
+         ((env.symbols.intVars.end() == env.symbols.intVars.find(label)) && (env.symbols.strVars.end() == env.symbols.strVars.find(label))))
        {
          ConsumeStr(state, label, true);
          std::string value;
          if (StringLiteral(line, state.charNo, value))
           {
-            ConsumeStr(state, value);
             env.symbols.strVars[label] = env.strVars.size();
             env.strVars.emplace_back(StrVar(label, 0U, value.length(), value));
           }
@@ -1919,7 +1970,8 @@ void TableCommand(const std::string& line, const std::string& cmd, CompilerState
    bool moreVars = false;
    do
     {
-      if (extractLabel(line, state.charNo, '(', false, label))
+      if (extractLabel(line, state.charNo, '(', false, label) &&
+         ((env.symbols.intVars.end() == env.symbols.intVars.find(label)) && (env.symbols.strVars.end() == env.symbols.strVars.find(label))))
        {
          ConsumeStr(state, label, true);
          std::string size;
@@ -1931,9 +1983,29 @@ void TableCommand(const std::string& line, const std::string& cmd, CompilerState
           }
          else
           {
-            PutString("Bad TABLE length");
-            NewLine();
-            CompilerFailure(state);
+            std::string len;
+            if (IntegerLiteral(line, state.charNo, ',', false, len))
+             {
+               ConsumeStr(state, size, true);
+               if (IntegerLiteral(line, state.charNo, ')', false, size))
+                {
+                  ConsumeStr(state, size, true);
+                  env.symbols.strVars[label] = env.strVars.size();
+                  env.strVars.emplace_back(StrVar(label, std::stoull(size), std::stoull(len), ""));
+                }
+               else
+                {
+                  PutString("Bad TABLE definition");
+                  NewLine();
+                  CompilerFailure(state);
+                }
+             }
+            else
+             {
+               PutString("Bad TABLE length");
+               NewLine();
+               CompilerFailure(state);
+             }
           }
        }
       else
@@ -2040,7 +2112,15 @@ void GotoXYCommand(const std::string& line, const std::string& cmd, CompilerStat
    ConsumeStr(state, ")");
 
    size_t lineEnd = state.charNo;
-   env.icode.emplace_back(std::make_unique<GotoXYImpl>(state.lineNo, lineStart, lineEnd, std::move(x), std::move(y)));
+   if ("CURP" != cmd)
+    {
+      env.icode.emplace_back(std::make_unique<GotoXYImpl>(state.lineNo, lineStart, lineEnd, std::move(x), std::move(y)));
+    }
+   else
+    {
+      // Purposefully (not) flipped
+      env.icode.emplace_back(std::make_unique<GotoYXImpl>(state.lineNo, lineStart, lineEnd, std::move(x), std::move(y)));
+    }
 
    NextLine(state, env);
  }
@@ -2083,7 +2163,7 @@ void SubroutineCommand(const std::string& line, const std::string& cmd, Compiler
    ConsumeStr(state, cmd);
 
    std::string label;
-   if (extractLabel(line, state.charNo, '(', true, label))
+   if (extractLabel(line, state.charNo, '(', true, label) && (state.subs.end() == state.subs.find(label)))
     {
       ConsumeStr(state, label);
       state.subs[label] = env.icode.size();
@@ -2308,5 +2388,123 @@ void RetrieveStrCommand(const std::string& line, const std::string& cmd, Compile
       NewLine();
       CompilerFailure(state);
     }
+   NextLine(state, env);
+ }
+
+void TableGetCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ConsumeStr(state, cmd);
+   if (extractLabel(line, state.charNo, '(', false, label) &&
+      ((env.symbols.intVars.end() != env.symbols.intVars.find(label)) || (env.symbols.strVars.end() != env.symbols.strVars.find(label))))
+    {
+      ConsumeStr(state, label, true);
+      std::unique_ptr<NumberExpr> index = Compiler::NumberExpression(line, state.charNo, ')', false, env);
+      if (nullptr != index.get())
+       {
+         ++state.charNo; // Consume ')'
+         size_t lineEnd = state.charNo;
+         if (env.symbols.strVars.end() != env.symbols.strVars.find(label))
+          {
+            size_t var = env.symbols.strVars[label];
+            env.icode.emplace_back(std::make_unique<StrAssignImpl>(state.lineNo, lineStart, lineEnd, std::make_unique<SingleStringSetter>(var),
+               std::make_unique<StringIndexVar>(var, std::move(index))));
+          }
+         else
+          {
+            size_t var = env.symbols.intVars[label];
+            env.icode.emplace_back(std::make_unique<NumAssignImpl>(state.lineNo, lineStart, lineEnd, std::make_unique<SingleNumberSetter>(var),
+               std::make_unique<NumberIndexVar>(var, std::move(index))));
+          }
+       }
+      else
+       {
+         PutString("Bad TABLE index");
+         NewLine();
+         CompilerFailure(state);
+       }
+    }
+   else
+    {
+      PutString("Bad TABLE name");
+      NewLine();
+      CompilerFailure(state);
+    }
+   NextLine(state, env);
+ }
+
+void TablePutCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ConsumeStr(state, cmd);
+   if (extractLabel(line, state.charNo, '(', false, label) &&
+      ((env.symbols.intVars.end() != env.symbols.intVars.find(label)) || (env.symbols.strVars.end() != env.symbols.strVars.find(label))))
+    {
+      ConsumeStr(state, label, true);
+      std::unique_ptr<NumberExpr> index = Compiler::NumberExpression(line, state.charNo, ')', false, env);
+      if (nullptr != index.get())
+       {
+         ++state.charNo; // Consume ')'
+         size_t lineEnd = state.charNo;
+         if (env.symbols.strVars.end() != env.symbols.strVars.find(label))
+          {
+            size_t var = env.symbols.strVars[label];
+            env.icode.emplace_back(std::make_unique<StrAssignImpl>(state.lineNo, lineStart, lineEnd,
+               std::make_unique<IndexedStringSetter>(var, std::move(index)), std::make_unique<StringVar>(var)));
+          }
+         else
+          {
+            size_t var = env.symbols.intVars[label];
+            env.icode.emplace_back(std::make_unique<NumAssignImpl>(state.lineNo, lineStart, lineEnd,
+               std::make_unique<IndexedNumberSetter>(var, std::move(index)), std::make_unique<NumberVar>(var)));
+          }
+       }
+      else
+       {
+         PutString("Bad TABLE index");
+         NewLine();
+         CompilerFailure(state);
+       }
+    }
+   else
+    {
+      PutString("Bad TABLE name");
+      NewLine();
+      CompilerFailure(state);
+    }
+   NextLine(state, env);
+ }
+
+void CurbCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   std::string label;
+   ConsumeStr(state, cmd, true);
+   if (extractLabel(line, state.charNo, ',', false, label))
+    {
+      ConsumeStr(state, label, true);
+    }
+   else
+    {
+      PutString("Bad CURB");
+      NewLine();
+      CompilerFailure(state);
+    }
+   if (IntegerLiteral(line, state.charNo, ')', false, label))
+    {
+      ConsumeStr(state, label, true);
+    }
+   else
+    {
+      PutString("Bad CURB length");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<CurbImpl>(state.lineNo, lineStart, lineEnd, std::stoull(label)));
+
    NextLine(state, env);
  }

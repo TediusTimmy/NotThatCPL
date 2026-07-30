@@ -125,6 +125,7 @@ public:
 
    virtual void rewind(void) override
     {
+      backing.clear();
       backing.seekg(0U);
     }
 

@@ -184,23 +184,6 @@ public:
    virtual int64_t eval(Environment& env) const override { return std::max(lhs->eval(env), rhs->eval(env)); }
  };
 
-class NumberIndexVar final : public NumberExpr
- {
-   size_t var;
-   std::unique_ptr<NumberExpr> index;
-public:
-   NumberIndexVar(size_t var, std::unique_ptr<NumberExpr>&& index) : var(var), index(std::move(index)) { }
-   virtual int64_t eval(Environment& env) const override { return env.intVars[var].getValue(static_cast<size_t>(index->eval(env))); }
- };
-
-class IndexedNumberSetter final : public NumberSetter
- {
-   std::unique_ptr<NumberExpr> index;
-public:
-   IndexedNumberSetter(size_t var, std::unique_ptr<NumberExpr>&& index) : NumberSetter(var), index(std::move(index)) { }
-   virtual void set(Environment& env, int64_t val) const override { env.intVars[var].setValue(static_cast<size_t>(index->eval(env)), val); }
- };
-
 enum TokenType
  {
    TOK_SYMBOL,
@@ -212,7 +195,6 @@ static std::string nextTolkien;
 static TokenType nextLewis;
 void getNextTolkien(const std::string& line, size_t& charNo); // Updates nextTolkien
 std::unique_ptr<NumberExpr> primary(const std::string& line, size_t& charNo, const Environment& env);
-std::unique_ptr<NumberExpr> term(const std::string& line, size_t& charNo, const Environment& env);
 std::unique_ptr<NumberExpr> expression(const std::string& line, size_t& charNo, const Environment& env);
 
 std::unique_ptr<NumberExpr> RealExpression(const std::string& line, size_t& charNo, const Environment& env)
@@ -229,19 +211,19 @@ std::unique_ptr<NumberExpr> RealExpression(const std::string& line, size_t& char
      return result; \
    }
 
-   // <term> { ( "+" | "-" ) <term> }
+   // <primary> { ( "+" | "-" | "*" | "/" ) <primary> }
 std::unique_ptr<NumberExpr> expression(const std::string& line, size_t& charNo, const Environment& env)
  {
-   std::unique_ptr<NumberExpr> result = term(line, charNo, env);
+   std::unique_ptr<NumberExpr> result = primary(line, charNo, env);
 
    CHECK(result)
 
-   while (("+" == nextTolkien) || ("-" == nextTolkien))
+   while (("+" == nextTolkien) || ("-" == nextTolkien) || ("*" == nextTolkien) || ("/" == nextTolkien))
     {
       std::string tolkien = nextTolkien;
       getNextTolkien(line, charNo);
 
-      std::unique_ptr<NumberExpr> rhs = term(line, charNo, env);
+      std::unique_ptr<NumberExpr> rhs = primary(line, charNo, env);
       CHECK(rhs)
       if ("+" == tolkien)
        {
@@ -253,26 +235,7 @@ std::unique_ptr<NumberExpr> expression(const std::string& line, size_t& charNo, 
          std::unique_ptr<NumberExpr> next = std::make_unique<Minus>(std::move(result), std::move(rhs));
          result = std::move(next);
        }
-    }
-
-   return result;
- }
-
-   // <primary> { ( "*" | "/" ) <primary> }
-std::unique_ptr<NumberExpr> term(const std::string& line, size_t& charNo, const Environment& env)
- {
-   std::unique_ptr<NumberExpr> result = primary(line, charNo, env);
-
-   CHECK(result)
-
-   while (("*" == nextTolkien) || ("/" == nextTolkien))
-    {
-      std::string tolkien = nextTolkien;
-      getNextTolkien(line, charNo);
-
-      std::unique_ptr<NumberExpr> rhs = primary(line, charNo, env);
-      CHECK(rhs)
-      if ("*" == tolkien)
+      else if ("*" == tolkien)
        {
          std::unique_ptr<NumberExpr> next = std::make_unique<Multiply>(std::move(result), std::move(rhs));
          result = std::move(next);

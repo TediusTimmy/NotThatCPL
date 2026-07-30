@@ -58,13 +58,16 @@ Only take two arguments.
 Only handles one left-hand-side value.
 
 
-## TABLE
-
-Only integer tables, for now.
-
-
 ## RETRIEVE
 
 This unholy abomination against all that is good has only been
-implemented for INTEGER and STRING, as I don't even know how the
+implemented for NUMBER and STRING, as I don't even know how the
 self-modifying code versions would work.
+
+## TABLE
+
+The documentation isn't clear if table indexes are 1-based or 0-based.
+I am guessing 1-based, because there is a statement about the meaning of TABLE(0).
+I have implemented them as 1-based with TABLE(0) being the work area
+(which the statement says IS NOT true).
+

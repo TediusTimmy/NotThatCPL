@@ -98,19 +98,44 @@ void IntVar::setValue(size_t index, int64_t val)
     }
  }
 
+int64_t NumberVar::eval(Environment& env) const
+ {
+   return env.intVars[var].getValue(0U);
+ }
+
+int64_t NumberIndexVar::eval(Environment& env) const
+ {
+   return env.intVars[var].getValue(static_cast<size_t>(index->eval(env)));
+ }
+
 void SingleNumberSetter::set(Environment& env, int64_t val) const
  {
    env.intVars[var].setValue(0U, val);
  }
 
-std::string StringVar::eval(const Environment& env) const
+void IndexedNumberSetter::set(Environment& env, int64_t val) const
+ {
+   env.intVars[var].setValue(static_cast<size_t>(index->eval(env)), val);
+ }
+
+std::string StringVar::eval(Environment& env) const
  {
    return env.strVars[var].getValue(0U);
  }
 
-int64_t NumberVar::eval(Environment& env) const
+std::string StringIndexVar::eval(Environment& env) const
  {
-   return env.intVars[var].getValue(0U);
+   return env.strVars[var].getValue(static_cast<size_t>(index->eval(env)));
+ }
+
+void SingleStringSetter::set(Environment& env, const std::string& val) const
+ {
+   env.strVars[var].setValue(0U, val);
+ }
+
+void IndexedStringSetter::set(Environment& env, const std::string& val) const
+ {
+   env.strVars[var].setValue(static_cast<size_t>(index->eval(env)), val);
  }
 
 std::string NormalizeStr(const std::string& source)
@@ -284,13 +309,13 @@ void CursImpl::execute(Environment& env)
  {
    std::string temp = str->eval(env);
    temp.resize(1U);
-   PutString(temp.c_str());
    Backspace();
+   PutString(temp.c_str());
  }
 
 void StrAssignImpl::execute(Environment& env)
  {
-   env.strVars[var].setValue(0U, val->eval(env));
+   var->set(env, val->eval(env));
  }
 
 void NumAssignImpl::execute(Environment& env)
@@ -340,7 +365,7 @@ void GotoXYImpl::execute(Environment& env)
  {
    int64_t X = x->eval(env);
    int64_t Y = y->eval(env);
-   GotoXY(X, Y);
+   GotoXY(X - 1, Y - 1);
  }
 
 void ReadBImpl::execute(Environment& env)
@@ -471,5 +496,24 @@ void RetrieveIntImpl::execute(Environment& env)
       PutString("Bad RETRIEVE(INTEGER");
       NewLine();
       throw StopCode(4);
+    }
+ }
+
+void GotoYXImpl::execute(Environment& env)
+ {
+   int64_t Y = y->eval(env);
+   int64_t X = x->eval(env);
+   GotoXY(X, Y);
+ }
+
+void CurbImpl::execute(Environment&)
+ {
+   std::vector<char> str (len, ' ');
+   str.push_back('\0');
+   Backspace();
+   PutString(&str[0U]);
+   for (size_t i = 1U; i < len; ++i)
+    {
+      Backspace();
     }
  }

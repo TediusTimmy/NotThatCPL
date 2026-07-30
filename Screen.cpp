@@ -53,20 +53,24 @@ void DestroyScreen(void)
 
 void Raw(void)
  {
+#ifndef NOTTHATCPL_NO_SCREEN_CHANGES
    struct termios tochange;
    tcgetattr(STDIN_FILENO, &tochange);
    tochange.c_lflag = ISIG | IEXTEN;
    tcsetattr(STDIN_FILENO, TCSANOW, &tochange);
    std::cout << "\33[?25l";
+#endif
  }
 
 void Cook(void)
  {
+#ifndef NOTTHATCPL_NO_SCREEN_CHANGES
    struct termios tochange;
    tcgetattr(STDIN_FILENO, &tochange);
    tochange.c_lflag = TTYDEF_LFLAG;
    tcsetattr(STDIN_FILENO, TCSANOW, &tochange);
    std::cout << "\33[?25h";
+#endif
  }
 
 int GetChar(void)
@@ -81,12 +85,16 @@ int GetChar(void)
 
 void Raw(void)
  {
+#ifndef NOTTHATCPL_NO_SCREEN_CHANGES
    std::cout << "\33[?25l";
+#endif
  }
 
 void Cook(void)
  {
+#ifndef NOTTHATCPL_NO_SCREEN_CHANGES
    std::cout << "\33[?25h";
+#endif
  }
 
 int GetChar(void)
@@ -108,7 +116,9 @@ void Normal(void)
 
 void GotoXY(int x, int y) // Zero-based
  {
+#ifndef NOTTHATCPL_NO_SCREEN_CHANGES
    std::cout << "\33[" << (y + 1) << ";" << (x + 1) << "H";
+#endif
  }
 
 bool GetString(std::string& str)
@@ -128,7 +138,9 @@ void NewLine(void)
 
 void ClearScreen(void)
  {
+#ifndef NOTTHATCPL_NO_SCREEN_CHANGES
    std::cout << "\33[2J";
+#endif
  }
 
 void ClearInputFlags(void)

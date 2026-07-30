@@ -55,7 +55,7 @@ public:
 class StringExpr : public WritableExpr
  {
 public:
-   virtual std::string eval(const Environment&) const = 0;
+   virtual std::string eval(Environment&) const = 0;
    virtual std::string toString(Environment& env) const override { return eval(env); };
  };
 
@@ -64,7 +64,7 @@ class StringConst final : public StringExpr
    std::string value;
 public:
    explicit StringConst(const std::string& value) : value(value) { }
-   virtual std::string eval(const Environment&) const override { return value; }
+   virtual std::string eval(Environment&) const override { return value; }
  };
 
 class StringCat final : public StringExpr
@@ -72,7 +72,7 @@ class StringCat final : public StringExpr
    std::unique_ptr<StringExpr> lhs, rhs;
 public:
    StringCat(std::unique_ptr<StringExpr>&& lhs, std::unique_ptr<StringExpr>&& rhs) : lhs(std::move(lhs)), rhs(std::move(rhs)) { }
-   virtual std::string eval(const Environment& env) const override { return lhs->eval(env) + rhs->eval(env); }
+   virtual std::string eval(Environment& env) const override { return lhs->eval(env) + rhs->eval(env); }
 };
 
 class StringVar final : public StringExpr
@@ -80,7 +80,7 @@ class StringVar final : public StringExpr
    size_t var;
 public:
    explicit StringVar(size_t var) : var(var) { }
-   virtual std::string eval(const Environment&) const override;
+   virtual std::string eval(Environment&) const override;
  };
 
 class NumberExpr : public WritableExpr
@@ -106,6 +106,15 @@ public:
    virtual int64_t eval(Environment&) const override;
  };
 
+class NumberIndexVar final : public NumberExpr
+ {
+   size_t var;
+   std::unique_ptr<NumberExpr> index;
+public:
+   NumberIndexVar(size_t var, std::unique_ptr<NumberExpr>&& index) : var(var), index(std::move(index)) { }
+   virtual int64_t eval(Environment& env) const override;
+ };
+
 class Plus final : public NumberExpr
  {
    std::unique_ptr<NumberExpr> lhs, rhs;
@@ -128,6 +137,47 @@ class SingleNumberSetter final : public NumberSetter
 public:
    explicit SingleNumberSetter(size_t var) : NumberSetter(var) { }
    virtual void set(Environment& env, int64_t val) const override;
+ };
+
+class IndexedNumberSetter final : public NumberSetter
+ {
+   std::unique_ptr<NumberExpr> index;
+public:
+   IndexedNumberSetter(size_t var, std::unique_ptr<NumberExpr>&& index) : NumberSetter(var), index(std::move(index)) { }
+   virtual void set(Environment& env, int64_t val) const override;
+ };
+
+class StringIndexVar final : public StringExpr
+ {
+   size_t var;
+   std::unique_ptr<NumberExpr> index;
+public:
+   StringIndexVar(size_t var, std::unique_ptr<NumberExpr>&& index) : var(var), index(std::move(index)) { }
+   virtual std::string eval(Environment& env) const override;
+ };
+
+class StringSetter
+ {
+protected:
+   size_t var;
+public:
+   explicit StringSetter(size_t var) : var(var) { }
+   virtual void set(Environment&, const std::string&) const = 0;
+ };
+
+class SingleStringSetter final : public StringSetter
+ {
+public:
+   explicit SingleStringSetter(size_t var) : StringSetter(var) { }
+   virtual void set(Environment& env, const std::string& val) const override;
+ };
+
+class IndexedStringSetter final : public StringSetter
+ {
+   std::unique_ptr<NumberExpr> index;
+public:
+   IndexedStringSetter(size_t var, std::unique_ptr<NumberExpr>&& index) : StringSetter(var), index(std::move(index)) { }
+   virtual void set(Environment& env, const std::string& val) const override;
  };
 
 /*
@@ -389,10 +439,10 @@ public:
 class StrAssignImpl final : public ICode
  {
 public:
-   size_t var;
+   std::unique_ptr<StringSetter> var;
    std::unique_ptr<StringExpr> val;
-   StrAssignImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t var, std::unique_ptr<StringExpr>&& val) :
-      ICode(lineNo, lineStart, lineEnd), var(var), val(std::move(val)) { }
+   StrAssignImpl (size_t lineNo, size_t lineStart, size_t lineEnd, std::unique_ptr<StringSetter>&& var, std::unique_ptr<StringExpr>&& val) :
+      ICode(lineNo, lineStart, lineEnd), var(std::move(var)), val(std::move(val)) { }
    virtual void execute(Environment&) override;
  };
 
@@ -508,6 +558,25 @@ class RetrieveIntImpl final : public ICode
 public:
    size_t var;
    RetrieveIntImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t var) : ICode(lineNo, lineStart, lineEnd), var(var) { }
+   virtual void execute(Environment&) override;
+ };
+
+class GotoYXImpl final : public ICode
+ {
+public:
+   std::unique_ptr<NumberExpr> y;
+   std::unique_ptr<NumberExpr> x;
+   GotoYXImpl (size_t lineNo, size_t lineStart, size_t lineEnd, std::unique_ptr<NumberExpr>&& y, std::unique_ptr<NumberExpr>&& x) :
+      ICode(lineNo, lineStart, lineEnd), y(std::move(y)), x(std::move(x)) { }
+   virtual void execute(Environment&) override;
+ };
+
+class CurbImpl final : public ICode
+ {
+public:
+   size_t len;
+   CurbImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t len) :
+      ICode(lineNo, lineStart, lineEnd), len(len) { }
    virtual void execute(Environment&) override;
  };
 
