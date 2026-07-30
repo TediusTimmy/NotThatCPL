@@ -512,8 +512,35 @@ void CurbImpl::execute(Environment&)
    str.push_back('\0');
    Backspace();
    PutString(&str[0U]);
-   for (size_t i = 1U; i < len; ++i)
+   for (size_t i = 0U; i < len; ++i)
     {
       Backspace();
+    }
+ }
+
+void SwitchImpl::execute(Environment& env)
+ {
+   int64_t dest = selector->eval(env) - 1;
+   if ((dest >= 0) && (dest < static_cast<int64_t>(labels.size())))
+    {
+      env.pc = target[dest] - 1U; // Account for auto increment
+    }
+ }
+
+void SwitchImpl::fixJumps(const std::map<std::string, size_t>& labs, const std::map<std::string, size_t>&)
+ {
+   for (const std::string& label : labels)
+    {
+      if (labs.end() != labs.find(label))
+       {
+         target.push_back(labs.find(label)->second); // Do NOT account for auto increment
+       }
+      else
+       {
+         PutString("Branch to undefined label ");
+         PutString(label.c_str());
+         NewLine();
+         throw StopCode(3);
+       }
     }
  }

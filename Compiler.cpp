@@ -297,18 +297,7 @@ void RetrieveStrCommand(const std::string&, const std::string&, CompilerState&, 
 void TableGetCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void TablePutCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void CurbCommand(const std::string&, const std::string&, CompilerState&, Environment&);
-
-// TODO : remove
-void TODO(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
- {
-   PutString("TODO ");
-   PutString(cmd.c_str());
-   PutString(" ");
-   PutString(line.c_str());
-   NewLine();
-   NextLine(state, env);
-   return;
- }
+void SwitchCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 
 // This would be a lot easier if I disallowed line crunching
 std::vector<std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> > buildTable(void)
@@ -349,7 +338,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("FREE", UnimplementedCommand)); // File/record locking
    // FRER is a subroutine
    // GETR is a subroutine
-   result.emplace_back(std::make_pair("GOTO(", TODO)); // Switch statement
+   result.emplace_back(std::make_pair("GOTO(", SwitchCommand)); // Switch statement
    result.emplace_back(std::make_pair("GOTO", GotoCommand));
    result.emplace_back(std::make_pair("GTIME(INTEGER,", IntTimeCommand)); // I'm being shifty here...
    result.emplace_back(std::make_pair("GTIME(STRING,", StrTimeCommand)); // but only as shifty as the documentation!
@@ -2506,5 +2495,51 @@ void CurbCommand(const std::string& line, const std::string& cmd, CompilerState&
    size_t lineEnd = state.charNo;
    env.icode.emplace_back(std::make_unique<CurbImpl>(state.lineNo, lineStart, lineEnd, std::stoull(label)));
 
+   NextLine(state, env);
+ }
+
+void SwitchCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd);
+
+   std::vector<std::string> labels;
+   bool done = false;
+   do
+    {
+      std::string label;
+      if (extractLineLabel(line, state.charNo, ',', false, label))
+       {
+         ConsumeStr(state, label, true);
+         labels.push_back(label);
+       }
+      else
+       {
+         if (extractLineLabel(line, state.charNo, ')', false, label))
+          {
+            ConsumeStr(state, label, true);
+            labels.push_back(label);
+            done = true;
+          }
+         else
+          {
+            PutString("Bad label");
+            NewLine();
+            CompilerFailure(state);
+          }
+       }
+    } while (!done);
+   ConsumeStr(state, "ON");
+
+   std::unique_ptr<NumberExpr> selector = Compiler::NumberExpression(line, state.charNo, '\\', true, env);
+   if (nullptr == selector.get())
+    {
+      PutString("Bad selector");
+      NewLine();
+      CompilerFailure(state);
+    }
+
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<SwitchImpl>(state.lineNo, lineStart, lineEnd, std::move(labels), std::move(selector)));
    NextLine(state, env);
  }

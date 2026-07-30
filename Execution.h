@@ -580,4 +580,16 @@ public:
    virtual void execute(Environment&) override;
  };
 
+class SwitchImpl final : public ICode
+ {
+public:
+   std::vector<std::string> labels;
+   std::vector<size_t> target;
+   std::unique_ptr<NumberExpr> selector;
+   SwitchImpl (size_t lineNo, size_t lineStart, size_t lineEnd, const std::vector<std::string>&& labels, std::unique_ptr<NumberExpr>&& selector) :
+      ICode(lineNo, lineStart, lineEnd), labels(std::move(labels)), selector(std::move(selector)) { }
+   virtual void execute(Environment&) override;
+   virtual void fixJumps(const std::map<std::string, size_t>&, const std::map<std::string, size_t>&) override;
+ };
+
 #endif /* NOTTHATCPL_EXCECUTION_H */
