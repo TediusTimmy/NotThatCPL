@@ -169,16 +169,29 @@ void WritenImpl::execute(Environment& env)
    size_t index = 0;
    for (const auto& val : value)
     {
-      while (IO_BLANK == formats[index])
+      while (IO_BLANK == formats[index].first)
        {
-         env.files[fileNo]->putStr(" ");
+         std::string temp = " ";
+         std::stringstream tmp;
+         tmp << std::right << std::setw(formats[index].second) << temp;
+         env.files[fileNo]->putStr(tmp.str());
          ++index;
          if (index == formats.size())
           {
             index = 0U;
           }
        }
-      env.files[fileNo]->putStr(val->toString(env));
+      if (IO_NUMBER == formats[index].first)
+       {
+         std::string temp = val->toString(env);
+         std::stringstream tmp;
+         tmp << std::right << std::setw(formats[index].second) << temp;
+         env.files[fileNo]->putStr(tmp.str());
+       }
+      else
+       {
+         env.files[fileNo]->putStr(val->toString(env));
+       }
       ++index;
       if (index == formats.size())
        {
@@ -203,7 +216,7 @@ void ReadImpl::execute(Environment& env)
    size_t index = 0;
    for (size_t varNo : vars)
     {
-      while (IO_BLANK == formats[index])
+      while (IO_BLANK == formats[index].first)
        {
          ++index;
          if (index == formats.size())
@@ -214,9 +227,9 @@ void ReadImpl::execute(Environment& env)
       std::string next;
       if (env.files[fileNo]->getStr(next))
        {
-         if (IO_STRING == formats[index])
+         if (IO_STRING == formats[index].first)
           {
-            env.strVars[varNo].setValue(0U, next);
+            env.strVars[varNo].setValue(0U, next.substr(0U, formats[index].second));
           }
          else // IO_NUMBER
           {

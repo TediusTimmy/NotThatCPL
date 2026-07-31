@@ -132,7 +132,7 @@ public:
    std::map<std::string, size_t> labels;
    std::map<std::string, size_t> subs;
    std::map<std::string, size_t> files;
-   std::map<std::string, std::vector<FORMAT> > formats;
+   std::map<std::string, std::vector<std::pair<FORMAT, int> > > formats;
    std::map<std::string, std::string> record;
    CompilerState() : lineNo(0U), charNo(0U), ended(false) { }
  };
@@ -699,25 +699,27 @@ void FormatCommand(const std::string& line, const std::string& cmd, CompilerStat
    if (extractLabel(line, state.charNo, ':', true, label) && (state.formats.end() == state.formats.find(label)))
     {
       ConsumeStr(state, label);
-      std::vector<FORMAT>& format = state.formats[label];
+      std::vector<std::pair<FORMAT, int> >& format = state.formats[label];
       size_t next = state.charNo;
       do
        {
          ++next;
+         size_t after = line.find(',', next);
+         int count = std::stoi(line.substr(next + 1U, after != std::string::npos ? after - next : after));
          switch (line[next])
           {
          case 'C':
-            format.push_back(IO_STRING);
+            format.emplace_back(std::make_pair(IO_STRING, count));
             break;
          case 'N':
          case 'D':
-            format.push_back(IO_NUMBER);
+            format.emplace_back(std::make_pair(IO_NUMBER, count));
             break;
          case 'X':
-            format.push_back(IO_BLANK);
+            format.emplace_back(std::make_pair(IO_BLANK, count));
             break;
           }
-         next = line.find(',', next);
+         next = after;
        } while (next != std::string::npos);
     }
    else
@@ -882,7 +884,7 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
    if (line.substr(state.charNo, 5U) != "EJECT")
     {
       size_t index = 0;
-      const std::vector<FORMAT>& formatVec = state.formats[format];
+      const std::vector<std::pair<FORMAT, int> >& formatVec = state.formats[format];
       std::vector<std::unique_ptr<WritableExpr> > vals;
       bool done = false;
       std::string curLine = line;
@@ -895,7 +897,7 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
             state.charNo = 0U;
             curLine = env.source[state.lineNo];
           }
-         while (formatVec[index] == IO_BLANK)
+         while (IO_BLANK == formatVec[index].first)
           {
             ++index;
             if (index == formatVec.size())
@@ -903,7 +905,7 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
                index = 0U;
              }
           }
-         if (IO_STRING == formatVec[index])
+         if (IO_STRING == formatVec[index].first)
           {
             std::unique_ptr<StringExpr> strVal = Compiler::StringExpression(curLine, state.charNo, ',', true, env);
             if (nullptr != strVal.get())
@@ -917,7 +919,7 @@ void WriteCommand(const std::string& line, const std::string& cmd, CompilerState
                CompilerFailure(state);
              }
           }
-         else if (IO_NUMBER == formatVec[index])
+         else if (IO_NUMBER == formatVec[index].first)
           {
             std::unique_ptr<NumberExpr> numVal = Compiler::NumberExpression(curLine, state.charNo, ',', true, env);
             if (nullptr != numVal.get())
@@ -984,7 +986,7 @@ void ReadCommand(const std::string& line, const std::string& cmd, CompilerState&
       CompilerFailure(state);
     }
    size_t index = 0;
-   const std::vector<FORMAT>& formatVec = state.formats[format];
+   const std::vector<std::pair<FORMAT, int> >& formatVec = state.formats[format];
    std::vector<size_t> vars;
    bool done = false;
    do
@@ -993,7 +995,7 @@ void ReadCommand(const std::string& line, const std::string& cmd, CompilerState&
       if (extractLabel(line, state.charNo, ',', true, var))
        {
          ConsumeStr(state, var);
-         while (formatVec[index] == IO_BLANK)
+         while (IO_BLANK == formatVec[index].first)
           {
             ++index;
             if (index == formatVec.size())
@@ -1001,11 +1003,11 @@ void ReadCommand(const std::string& line, const std::string& cmd, CompilerState&
                index = 0U;
              }
           }
-         if ((IO_STRING == formatVec[index]) && (env.symbols.strVars.end() != env.symbols.strVars.find(var)))
+         if ((IO_STRING == formatVec[index].first) && (env.symbols.strVars.end() != env.symbols.strVars.find(var)))
           {
             vars.push_back(env.symbols.strVars[var]);
           }
-         else if ((IO_NUMBER == formatVec[index]) && (env.symbols.intVars.end() != env.symbols.intVars.find(var)))
+         else if ((IO_NUMBER == formatVec[index].first) && (env.symbols.intVars.end() != env.symbols.intVars.find(var)))
           {
             vars.push_back(env.symbols.intVars[var]);
           }
@@ -1034,7 +1036,7 @@ void ReadCommand(const std::string& line, const std::string& cmd, CompilerState&
        }
     } while (!done);
    size_t lineEnd = state.charNo;
-   env.icode.emplace_back(std::make_unique<ReadImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], state.formats[format], vars));
+   env.icode.emplace_back(std::make_unique<ReadImpl>(state.lineNo, lineStart, lineEnd, state.files[fileVar], formatVec, vars));
    NextLine(state, env);
  }
 
@@ -2136,7 +2138,7 @@ void ReadBCommand(const std::string& line, const std::string& cmd, CompilerState
     }
    else
     {
-      PutString("Bad CURSOR");
+      PutString("Bad READB destination");
       NewLine();
       CompilerFailure(state);
     }

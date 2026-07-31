@@ -30,7 +30,7 @@ Doesn't do anything, because I don't know what it does.
 
 ## FORMAT
 
-Length specifiers are ignored.
+Length specifiers can only be integer literals.
 
 
 ## OPEN

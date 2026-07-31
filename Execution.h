@@ -327,9 +327,9 @@ class WritenImpl : public ICode
  {
 public:
    size_t fileNo;
-   std::vector<FORMAT> formats;
+   std::vector<std::pair<FORMAT, int> > formats;
    std::vector<std::unique_ptr<WritableExpr> > value;
-   WritenImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t fileNo, const std::vector<FORMAT>& formats, std::vector<std::unique_ptr<WritableExpr> >&& value) :
+   WritenImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t fileNo, const std::vector<std::pair<FORMAT, int> >& formats, std::vector<std::unique_ptr<WritableExpr> >&& value) :
       ICode(lineNo, lineStart, lineEnd), fileNo(fileNo), formats(formats), value(std::move(value)) { }
    virtual void execute(Environment&) override;
  };
@@ -337,7 +337,7 @@ public:
 class WriteImpl final : public WritenImpl
  {
 public:
-   WriteImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t fileNo, const std::vector<FORMAT>& formats, std::vector<std::unique_ptr<WritableExpr> >&& value) :
+   WriteImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t fileNo, const std::vector<std::pair<FORMAT, int> >& formats, std::vector<std::unique_ptr<WritableExpr> >&& value) :
       WritenImpl(lineNo, lineStart, lineEnd, fileNo, formats, std::move(value)) { }
    virtual void execute(Environment&) override;
  };
@@ -355,9 +355,9 @@ class ReadImpl final : public ICode
  {
 public:
    size_t fileNo;
-   std::vector<FORMAT> formats;
+   std::vector<std::pair<FORMAT, int> > formats;
    std::vector<size_t> vars;
-   ReadImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t fileNo, const std::vector<FORMAT>& formats, const std::vector<size_t>& vars) :
+   ReadImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t fileNo, const std::vector<std::pair<FORMAT, int> >& formats, const std::vector<size_t>& vars) :
       ICode(lineNo, lineStart, lineEnd), fileNo(fileNo), formats(formats), vars(vars) { }
    virtual void execute(Environment&) override;
  };
