@@ -214,40 +214,44 @@ void ClsImpl::execute(Environment& env)
 void ReadImpl::execute(Environment& env)
  {
    size_t index = 0;
+   std::string next;
+   if (!env.files[fileNo]->getStr(next))
+    {
+      env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 1);
+      return;
+    }
+   std::stringstream record (next);
    for (size_t varNo : vars)
     {
       while (IO_BLANK == formats[index].first)
        {
+         record.ignore(formats[index].second);
          ++index;
          if (index == formats.size())
           {
             index = 0U;
           }
        }
-      std::string next;
-      if (env.files[fileNo]->getStr(next))
+      if (IO_STRING == formats[index].first)
        {
-         if (IO_STRING == formats[index].first)
-          {
-            env.strVars[varNo].setValue(0U, next.substr(0U, formats[index].second));
-          }
-         else // IO_NUMBER
-          {
-            try
-             {
-               env.intVars[varNo].setValue(0U, std::stoll(next));
-             }
-            catch (const std::invalid_argument&)
-             {
-               env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 1);
-               return;
-             }
-          }
+         std::vector<char> temp (formats[index].second + 1U, '\0');
+         record.getline(&temp[0U], formats[index].second + 1U);
+         record.clear();
+         env.strVars[varNo].setValue(0U, &temp[0U]);
        }
-      else
+      else // IO_NUMBER
        {
-         env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 1);
-         return;
+         int64_t temp;
+         record >> temp;
+         if (record)
+          {
+            env.intVars[varNo].setValue(0U, temp);
+          }
+         else
+          {
+            env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 1);
+            return;
+          }
        }
       ++index;
       if (index == formats.size())
