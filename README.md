@@ -3,7 +3,7 @@ NotThatCPL
 
 This is an interpreter for the CPL programming language. No. NOT THAT CPL.
 Not Cambridge Programming Language or Combined Programming Language (same language).
-This is Centurion Programming Language, and is has an ELSE.
+This is Centurion Programming Language, and is has just ELSE.
 
 Centurion Programming language takes inspiration from FORTRAN.
 The Centurion Computer Corporation was a small computer company from Texas that made
@@ -21,8 +21,12 @@ Usagi because they are part of the Centurion Operating System, which has an acti
 rights holder. Apparently, they have two whole customers still.
 
 So, I decided to do what Gates and Allen did to write Microsoft BASIC (8080 version):
-write an interpreter for the target. CPL isn't that bad.
+write an interpreter for the target. CPL isn't that bad.  
 I've written more cancerous languages myself.
+
+After writing the CPL interpreter, I don't know if I would want to write a BASIC
+interpreter in CPL: the string support in CPL is so lacking that it would be painful
+to decode a string of BASIC in CPL.
 
 Anyway, here is an interpreter for the CPL language, so that you can write programs
 for Usagi Electric to show off. It tries to be accurate, but there are just things that
@@ -39,7 +43,8 @@ Debugger
 
 The default build has a debugger. It can be removed to just run your programs.
 The debugger will print out the deblanked source, then the compiled, deblanked source,
-and then you can enter commands.
+and then you can enter commands. Also, the current command is supposed to be
+emphasized: in Cygwin it is nice, but in the Windows Terminal, the contrast is lacking.
 
 `RUN` - Run the program, or re-run it, or continue it.  
 `STEP` or `NEXT` - Take a step of one command in the code.  

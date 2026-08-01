@@ -298,6 +298,7 @@ void TableGetCommand(const std::string&, const std::string&, CompilerState&, Env
 void TablePutCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void CurbCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 void SwitchCommand(const std::string&, const std::string&, CompilerState&, Environment&);
+void DecodeCommand(const std::string&, const std::string&, CompilerState&, Environment&);
 
 // This would be a lot easier if I disallowed line crunching
 std::vector<std::pair<std::string, void (*)(const std::string&, const std::string&, CompilerState&, Environment&)> > buildTable(void)
@@ -315,7 +316,7 @@ std::vector<std::pair<std::string, void (*)(const std::string&, const std::strin
    result.emplace_back(std::make_pair("CURP", GotoXYCommand));
    result.emplace_back(std::make_pair("CURSOR", GotoXYCommand)); // This is why we have a table
    result.emplace_back(std::make_pair("CURS", CursCommand));
-   result.emplace_back(std::make_pair("DECODE", UnimplementedCommand)); // String manipulation ???
+   result.emplace_back(std::make_pair("DECODE", DecodeCommand));
    // You would think that DECR would be sufficient, but we want to consume the whole word:
    result.emplace_back(std::make_pair("DECREMENT", IncrCommand));
    result.emplace_back(std::make_pair("DECR", IncrCommand));
@@ -2543,5 +2544,75 @@ void SwitchCommand(const std::string& line, const std::string& cmd, CompilerStat
 
    size_t lineEnd = state.charNo;
    env.icode.emplace_back(std::make_unique<SwitchImpl>(state.lineNo, lineStart, lineEnd, std::move(labels), std::move(selector)));
+   NextLine(state, env);
+ }
+
+void DecodeCommand(const std::string& line, const std::string& cmd, CompilerState& state, Environment& env)
+ {
+   size_t lineStart = state.charNo;
+   ConsumeStr(state, cmd, true); // Don't check that it's a '('
+   std::string strVar, format;
+   bool success = extractLabel(line, state.charNo, ',', false, strVar) && (env.symbols.strVars.end() != env.symbols.strVars.find(strVar));
+   if (success) ConsumeStr(state, strVar, true);
+   success &= extractLabel(line, state.charNo, ')', false, format) && (state.formats.end() != state.formats.find(format));
+   if (success) ConsumeStr(state, format, true);
+   else
+    {
+      PutString("Error DECODE string or format");
+      NewLine();
+      CompilerFailure(state);
+    }
+   size_t index = 0;
+   const std::vector<std::pair<FORMAT, int> >& formatVec = state.formats[format];
+   std::vector<size_t> vars;
+   bool done = false;
+   do
+    {
+      std::string var;
+      if (extractLabel(line, state.charNo, ',', true, var))
+       {
+         ConsumeStr(state, var);
+         while (IO_BLANK == formatVec[index].first)
+          {
+            ++index;
+            if (index == formatVec.size())
+             {
+               index = 0U;
+             }
+          }
+         if ((IO_STRING == formatVec[index].first) && (env.symbols.strVars.end() != env.symbols.strVars.find(var)))
+          {
+            vars.push_back(env.symbols.strVars[var]);
+          }
+         else if ((IO_NUMBER == formatVec[index].first) && (env.symbols.intVars.end() != env.symbols.intVars.find(var)))
+          {
+            vars.push_back(env.symbols.intVars[var]);
+          }
+         else
+          {
+            PutString("Bad variable in DECODE");
+            NewLine();
+            CompilerFailure(state);
+          }
+         ++index;
+         if (index == formatVec.size())
+          {
+            index = 0U;
+          }
+       }
+      else
+       {
+         PutString("DECODE variable?");
+         NewLine();
+         CompilerFailure(state);
+       }
+      done = ',' != line[state.charNo];
+      if (!done)
+       {
+         ++state.charNo;
+       }
+    } while (!done);
+   size_t lineEnd = state.charNo;
+   env.icode.emplace_back(std::make_unique<DecodeImpl>(state.lineNo, lineStart, lineEnd, env.symbols.strVars[strVar], formatVec, vars));
    NextLine(state, env);
  }

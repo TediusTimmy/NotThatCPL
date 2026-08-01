@@ -15,6 +15,7 @@ RECORD CMDREC(1)
 ENDREC
 ```
 This automatically puts the console in raw mode for character-based IO.
+Sadly, it's still blocking IO. But it is raw IO.
 
 
 ## DIRECT
@@ -42,10 +43,13 @@ Only supports one `access` per command invocation.
 ```
 
 
-## CURS
+## CURS / CURSOR
 
 Ignores the file - always the one and only screen. Also, asserts that the count is 1.
 Doesn't check that the string has length one, just uses it's first character.
+
+I'm also fairly sure there are off-by-one errors littered in code that switches between
+0-indexing and 1-indexing quite freely.
 
 
 ## MIN and MAX
@@ -71,3 +75,8 @@ I am guessing 1-based, because there is a statement about the meaning of TABLE(0
 I have implemented them as 1-based with TABLE(0) being the work area
 (which the statement says IS NOT true).
 
+
+## IFSTRING
+
+The emu program demonstrated a lack of type checking in CPL, and it had a string comparison
+to an integer representing a string. I have disallowed this chicanery.

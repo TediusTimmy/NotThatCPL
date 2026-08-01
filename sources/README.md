@@ -13,6 +13,6 @@ They are not mine. They are not subject to the license, as I can't relicense the
 * 1DLIFE.cepl (NOTE: has been modified to remove OOB reads)
 * sieve.cepl
 * rogue.cepl
-* ced.cepl/ced5.cepl (Showing to screen not implemented correctly)
+* ced.cepl/ced5.cepl
 * wdog.cepl
-* emu.cepl
+* emu.cepl (NOTE: has been modified to remove the tab string integer : IYKYK)

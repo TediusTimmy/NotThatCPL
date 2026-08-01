@@ -211,16 +211,10 @@ void ClsImpl::execute(Environment& env)
    env.files[fileNo]->clearScreen();
  }
 
-void ReadImpl::execute(Environment& env)
+static void DoRealRead(const std::string& in, Environment& env, const std::vector<std::pair<FORMAT, int> >& formats, const std::vector<size_t>& vars)
  {
    size_t index = 0;
-   std::string next;
-   if (!env.files[fileNo]->getStr(next))
-    {
-      env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 1);
-      return;
-    }
-   std::stringstream record (next);
+   std::stringstream record (in);
    for (size_t varNo : vars)
     {
       while (IO_BLANK == formats[index].first)
@@ -260,6 +254,23 @@ void ReadImpl::execute(Environment& env)
        }
     }
    env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 0);
+ }
+
+void ReadImpl::execute(Environment& env)
+ {
+   std::string next;
+   if (!env.files[fileNo]->getStr(next))
+    {
+      env.intVars[env.symbols.intVars["STATUS"]].setValue(0U, 1);
+      return;
+    }
+   DoRealRead(next, env, formats, vars);
+ }
+
+void DecodeImpl::execute(Environment& env)
+ {
+   std::string next = env.strVars[strVar].getValue(0U);
+   DoRealRead(next, env, formats, vars);
  }
 
 void StopImpl::execute(Environment&)

@@ -592,4 +592,15 @@ public:
    virtual void fixJumps(const std::map<std::string, size_t>&, const std::map<std::string, size_t>&) override;
  };
 
+class DecodeImpl final : public ICode
+ {
+public:
+   size_t strVar;
+   std::vector<std::pair<FORMAT, int> > formats;
+   std::vector<size_t> vars;
+   DecodeImpl (size_t lineNo, size_t lineStart, size_t lineEnd, size_t strVar, const std::vector<std::pair<FORMAT, int> >& formats, const std::vector<size_t>& vars) :
+      ICode(lineNo, lineStart, lineEnd), strVar(strVar), formats(formats), vars(vars) { }
+   virtual void execute(Environment&) override;
+ };
+
 #endif /* NOTTHATCPL_EXCECUTION_H */
