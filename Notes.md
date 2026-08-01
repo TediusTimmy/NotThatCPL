@@ -80,3 +80,8 @@ I have implemented them as 1-based with TABLE(0) being the work area
 
 The emu program demonstrated a lack of type checking in CPL, and it had a string comparison
 to an integer representing a string. I have disallowed this chicanery.
+
+
+## GTIME
+
+The integer variant returns _milliseconds_ since midnight.
