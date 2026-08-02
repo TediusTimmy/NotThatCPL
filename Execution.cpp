@@ -123,6 +123,25 @@ std::string StringVar::eval(Environment& env) const
    return env.strVars[var].getValue(0U);
  }
 
+std::string ReinterpretNumber::eval(Environment& env) const
+ {
+   int64_t temp = env.intVars[var].getValue(0U);
+   std::string result;
+   for (int i = 24; i > 0; i -= 8)
+    {
+      char now = static_cast<char>((temp >> i) & 0x7F);
+      if (now != '\0')
+       {
+         result += now;
+       }
+      else
+       {
+         break;
+       }
+    }
+   return result;
+ }
+
 std::string StringIndexVar::eval(Environment& env) const
  {
    return env.strVars[var].getValue(static_cast<size_t>(index->eval(env)));

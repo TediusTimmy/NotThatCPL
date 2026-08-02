@@ -847,10 +847,18 @@ std::unique_ptr<StringExpr> Compiler::StringExpression(const std::string& line, 
    else
     {
       std::string var;
-      if (extractLabel(line, charNo, delim, orEOL, var) && (env.symbols.strVars.end() != env.symbols.strVars.find(var)))
+      if (extractLabel(line, charNo, delim, orEOL, var))
        {
-         charNo += var.length();
-         value = std::make_unique<StringVar>(env.symbols.strVars.find(var)->second);
+         if (env.symbols.strVars.end() != env.symbols.strVars.find(var))
+          {
+            charNo += var.length();
+            value = std::make_unique<StringVar>(env.symbols.strVars.find(var)->second);
+          }
+         else if (env.symbols.intVars.end() != env.symbols.intVars.find(var))
+          {
+            charNo += var.length();
+            value = std::make_unique<ReinterpretNumber>(env.symbols.intVars.find(var)->second);
+          }
        }
     }
    return value;

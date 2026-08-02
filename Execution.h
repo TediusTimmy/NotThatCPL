@@ -83,6 +83,14 @@ public:
    virtual std::string eval(Environment&) const override;
  };
 
+class ReinterpretNumber final : public StringExpr
+ {
+   size_t var;
+public:
+   explicit ReinterpretNumber(size_t var) : var(var) { }
+   virtual std::string eval(Environment&) const override;
+ };
+
 class NumberExpr : public WritableExpr
  {
 public:

@@ -15,4 +15,4 @@ They are not mine. They are not subject to the license, as I can't relicense the
 * rogue.cepl
 * ced.cepl/ced5.cepl
 * wdog.cepl
-* emu.cepl (NOTE: has been modified to remove the tab string integer : IYKYK)
+* emu.cepl (NOTE: has been modified to play nicer with large displays, and fixes what I think is a bug)
