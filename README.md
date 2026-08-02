@@ -44,7 +44,7 @@ Debugger
 The default build has a debugger. It can be removed to just run your programs.
 The debugger will print out the deblanked source, then the compiled, deblanked source,
 and then you can enter commands. Also, the current command is supposed to be
-emphasized: in Cygwin it is nice, but in the Windows Terminal, the contrast is lacking.
+emphasized.
 
 `RUN` - Run the program, or re-run it, or continue it.  
 `STEP` or `NEXT` - Take a step of one command in the code.  

@@ -106,12 +106,12 @@ int GetChar(void)
 
 void Emphasis(void)
  {
-   std::cout << "\33[1m";
+   std::cout << "\33[1;34m";
  }
 
 void Normal(void)
  {
-   std::cout << "\33[22m";
+   std::cout << "\33[22;39m";
  }
 
 void GotoXY(int x, int y) // Zero-based

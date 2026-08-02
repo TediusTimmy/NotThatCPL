@@ -160,16 +160,11 @@ void IndexedStringSetter::set(Environment& env, const std::string& val) const
 std::string NormalizeStr(const std::string& source)
  {
    std::string result = source;
-   result.erase(0U, result.find_first_not_of(" \t"));
    size_t end = result.find_last_not_of(" \t");
    if (std::string::npos != end)
     {
       result.erase(end + 1U);
    }
-   else
-    {
-      result.clear();
-    }
    std::transform(result.begin(), result.end(), result.begin(),
       [](unsigned char c) { return std::toupper(c); });
    return result;
